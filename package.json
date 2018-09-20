@@ -1,0 +1,48 @@
+{
+  "name": "elaius",
+  "version": "0.0.0",
+  "description": "A tool for managing multi-package JavaScript projects, by bundling dependencies instead of publishing them",
+  "keywords": [
+    "elaius",
+    "lerna",
+    "monorepo",
+    "multi-package",
+    "tarball"
+  ],
+  "homepage": "https://github.com/forivall/elaius",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forivall/elaius.git"
+  },
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Emily Marigold Klassen",
+    "email": "forivall@gmail.com"
+  },
+  "bin": {
+    "ela": "lib/cli.js",
+    "elaius": "lib/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"TODO: tests!\" && exit 1",
+    "build": "tsc -b",
+    "watch": "tsc -b -w"
+  },
+  "engines": {
+    "node": ">= 6.9.0"
+  },
+  "dependencies": {
+    "@types/npmlog": "^4.1.1",
+    "@types/yargs": "^12.0.0",
+    "npmlog": "^4.1.2",
+    "yargs": "^12.0.2"
+  },
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "tslint-xo": "^0.9.0",
+    "typescript": "^3.0.3",
+    "xo": "^0.23.0"
+  }
+}
