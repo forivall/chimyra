@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "typeRoots": [
+      "./node_modules/@types",
+      "./typings"
+    ],
     /* Basic Options */
     "target": "es2015",
     "module": "commonjs",
