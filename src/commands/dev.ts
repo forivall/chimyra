@@ -13,10 +13,6 @@ export function builder(y: Argv) {
 // tslint:disable-next-line:no-empty-interface
 export interface Args extends CommandArgs {}
 
-export function handler(argv: Args) {
-  return new DevCommand(argv)
-}
-
 export default class DevCommand extends Command {
   initialize() {
     throw new Error('Method not implemented.')
@@ -24,4 +20,8 @@ export default class DevCommand extends Command {
   execute() {
     throw new Error('Method not implemented.')
   }
+}
+
+export function handler(argv: Args) {
+  return new DevCommand(argv)
 }

@@ -1,9 +1,10 @@
-import yargs = require('yargs/yargs')
+import * as yargs from 'yargs/yargs'
 
 import * as log from 'npmlog'
 import {name} from './constants'
 import {PackageJson} from '@npm/types'
 
+// tslint:disable-next-line:no-var-requires no-require-imports
 const pkg: PackageJson = require('../package.json')
 
 export function cli(argv?: string[], cwd?: string) {
@@ -45,6 +46,7 @@ export default function main(argv: string[]) {
 
 import lazyExport from './helpers/lazy-export'
 declare const DevCommand: typeof import('./commands/dev').default
+// tslint:disable-next-line:no-require-imports
 lazyExport(module, 'DevCommand', () => require('./commands/dev').default)
 
 export {DevCommand}

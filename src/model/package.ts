@@ -144,7 +144,7 @@ export default class Package {
   }
   // write changes to disk
   serialize() {
-    writePkg(this.manifestLocation, this._pkg)
+    return writePkg(this.manifestLocation, this._pkg)
   }
 
   // TODO: update to set up local dependencies

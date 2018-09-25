@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+/* tslint:disable:no-require-imports */
 import importLocal = require('import-local')
 
 if (importLocal(__filename)) {

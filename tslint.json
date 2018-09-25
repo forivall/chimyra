@@ -20,6 +20,13 @@
     "type-literal-delimiter": false,
     "triple-equals": [true, "allow-null-check"],
     "no-non-null-assertion": false,
-    "no-unused": false
+    "no-unused": false,
+    "strict-type-predicates": {
+      "severity": "warn"
+    },
+    // broken with `unknown`
+    "no-unnecessary-type-assertion": {
+      "severity": "warn"
+    }
   }
 }

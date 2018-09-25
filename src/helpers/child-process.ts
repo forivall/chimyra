@@ -42,7 +42,7 @@ export function exec(
   args: ReadonlyArray<string>,
   opts: ChildProcessOptions,
 ) {
-  const options = Object.assign({stdio: 'pipe'}, opts)
+  const options: ChildProcessOptions = {stdio: 'pipe', ...opts}
   const spawned = spawnProcess(command, args, options)
 
   return wrapError(spawned)
@@ -61,7 +61,7 @@ export function spawn(
   args: ReadonlyArray<string>,
   opts: ChildProcessOptions,
 ) {
-  const options = Object.assign({}, opts, {stdio: 'inherit'})
+  const options: ChildProcessOptions = {...opts, stdio: 'inherit'}
   const spawned = spawnProcess(command, args, options)
 
   return wrapError(spawned)
@@ -74,7 +74,7 @@ export function spawnStreaming(
   opts: execa.Options,
   prefix: string,
 ) {
-  const options = Object.assign({}, opts)
+  const options = {...opts}
   options.stdio = ['ignore', 'pipe', 'pipe']
 
   const colorName = colorWheel[children % NUM_COLORS]
