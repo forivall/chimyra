@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "typeRoots": [
+      "./node_modules/@types",
+      "./typings"
+    ],
     /* Basic Options */
     "target": "es2015",
     "module": "commonjs",
@@ -7,7 +11,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "importHelpers": true,
-    "composite": true,
+    // "resolveJsonModule": true,
 
     /* Strict Type-Checking Options */
     "strict": true,
@@ -19,7 +23,7 @@
     // "noFallthroughCasesInSwitch": true,
 
     /* Module Resolution Options */
-    "esModuleInterop": true
+    "esModuleInterop": false
 
     /* Experimental Options */
     // "experimentalDecorators": true,        /* Enables experimental support for ES7 decorators. */

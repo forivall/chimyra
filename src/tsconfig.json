@@ -1,10 +1,13 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    // "composite": true, // breaks tslint
     "outDir": "../lib"
   },
   "include": [
-    "./**/*"
+    "./**/*",
+    "../typings",
+    "../package.json"
   ],
   "exclude": [
   ]
