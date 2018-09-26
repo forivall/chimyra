@@ -36,7 +36,7 @@ export function cli(argv?: string[], cwd?: string) {
 
 export default function main(argv: string[]) {
   const ctx = {
-    elaiusVersion: pkg.version,
+    chimerVersion: pkg.version,
   }
 
   return cli()

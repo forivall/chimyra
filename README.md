@@ -1,12 +1,14 @@
-# Elaius
+# Chimer
+
+_/kai'mir/_
 
 A tool for managing JavaScript projects with bundled internal dependencies.
 
 ## About
 
-Similar to [Lerna](https://github.com/lerna/lerna), helps manage a [monorepo](https://github.com/babel/babel/blob/master/doc/design/monorepo.md) based project. However, it's geared towards being independent of a registry without resorting to git subtree branching. It does this by generating local tarballs with `npm package` on the fly when installing dependencies for production deployment. This way, the package can be distributed without needing to copy the entire monorepo.
+Similar to [Lerna](https://github.com/lerna/lerna), Chimer helps manage a [monorepo](https://github.com/babel/babel/blob/master/doc/design/monorepo.md) based project. However, it's geared towards being independent of a registry without resorting to git subtree branching. It does this by generating local tarballs with `npm package` on the fly when installing dependencies for production deployment. This way, the package can be distributed without needing to copy the entire monorepo.
 
-### What a monorepo using Elaius will look like:
+### What a monorepo using Chimer will look like:
 
 ```
 my-project-repo/
@@ -25,18 +27,18 @@ my-project-repo/
 
 The apps can depend on packages and use them as bundled dependencies.
 
-There are 4 major elaius commands:
+There are 4 major chimer commands:
 
-_Note: `ela` and `elaius` are interchangeable_
+_Note: `chi` and `chimer` are interchangeable_
 
-`ela dev` - bootstrap local packages by linking them together, and install foreign packages, for development.
+`chi dev` - bootstrap local packages by linking them together, and install foreign packages, for development.
 
-`ela prepare` - when run inside of an app folder, prepare an app for deployment, by packaging the dependencies at the defined version. Can be used as `prepare` in `package.json` `scripts`.
+`chi prepare` - when run inside of an app folder, prepare an app for deployment, by packaging the dependencies at the defined version. Can be used as `prepare` in `package.json` `scripts`.
 
-`ela update` - Interactively update dependency versions. Automatically runs `ela prepare` after dependencies are up to date.
+`chi update` - Interactively update dependency versions. Automatically runs `chi prepare` after dependencies are up to date.
 
-`ela version` - bump the version of an application or library, and tags the release. If the dependency versions defined in the package.json aren't at the current version as the packages in the repo, fails, and requires `ela update` or re-run using a flag to continue.
+`chi version` - bump the version of an application or library, and tags the release. If the dependency versions defined in the package.json aren't at the current version as the packages in the repo, fails, and requires `chi update` or re-run using a flag to continue.
 
 ## Details
 
-In the `package.json`, instead of defining the version of the package in `dependencies` / `devDependencies`, elaius introduces a `localDependencies` field. `d(evD)?ependencies` will use a path to a tarball, and localDependencies specifies the version identifier according to semver.
+In the `package.json`, instead of defining the version of the package in `dependencies` / `devDependencies`, chimer introduces a `localDependencies` field. `d(evD)?ependencies` will use a path to a tarball, and localDependencies specifies the version identifier according to semver.

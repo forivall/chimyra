@@ -14,7 +14,7 @@ import writeLogFile from '../helpers/write-log-file'
 const DEFAULT_CONCURRENCY = 4
 
 export interface CommandArgs {
-  elaiusVersion: string
+  chimerVersion: string
   cwd?: string
   composed?: string
   /** @internal */
@@ -78,7 +78,7 @@ export default abstract class Command {
 
     if (!this.composed) {
       // composed commands have already logged the version
-      log.notice('cli', `v${args.elaiusVersion}`)
+      log.notice('cli', `v${args.chimerVersion}`)
     }
 
     this.project = new Project(args.cwd)
