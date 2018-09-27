@@ -1,3 +1,4 @@
+import * as log from 'npmlog'
 import * as npa from 'npm-package-arg'
 import * as path from 'path'
 import * as writePkg from 'write-pkg'
@@ -9,11 +10,7 @@ import ValidationError from '../errors/validation'
 function binSafeName(result: npa.Result) {
   const {name, scope} = result
   if (name === null) {
-    throw new ValidationError(
-      'binSafeName',
-      'Could not get name from %O',
-      result,
-    )
+    throw new ValidationError('binSafeName', 'Could not get name from %O', result)
   }
   return scope ? name.substring(scope.length + 1) : name
 }
@@ -36,8 +33,9 @@ function shallowCopy(json: any) {
   }, {})
 }
 
-export interface AnyPackageJson extends PackageJson {
+export interface ChimerPackageJson extends PackageJson {
   optionalDependencies?: Dependencies
+  chimerDependencies?: Dependencies
   [key: string]: any
 }
 
@@ -50,12 +48,12 @@ export default class Package {
   readonly bin!: {
     [name: string]: string
   }
-  readonly scripts: PackageJson['scripts']
+  readonly scripts: ChimerPackageJson['scripts']
   readonly manifestLocation!: string
   readonly nodeModulesLocation!: string
   readonly binLocation!: string
 
-  private readonly _pkg!: AnyPackageJson
+  private readonly _pkg!: ChimerPackageJson
 
   constructor(pkg: PackageJson, location: string, rootPath = location) {
     // npa will throw an error if the name is invalid
@@ -129,6 +127,9 @@ export default class Package {
   get peerDependencies() {
     return this._pkg.peerDependencies
   }
+  get chimerDependencies() {
+    return this._pkg.chimerDependencies
+  }
   // Map-like retrieval and storage of arbitrary values
   get(key: string) {
     return this._pkg[key]
@@ -150,6 +151,7 @@ export default class Package {
   // TODO: update to set up local dependencies
   updateLocalDependency(
     resolved: npa.Result,
+    tarball: string,
     depVersion: string,
     savePrefix: string,
   ) {
@@ -163,6 +165,35 @@ export default class Package {
       )
     }
 
+    const depCollection = this.getDependencyCollection(depName)
+
+    if (!depCollection) {
+      log.info(
+        'PACKAGE',
+        'Requested update for unknown dependency %O to %s%s',
+        resolved,
+        depVersion,
+        savePrefix,
+      )
+      return
+    }
+
+    let depVersions = this.chimerDependencies
+    if (!depVersions) {
+      depVersions = {}
+      this.set('chimerDependencies', depVersions)
+    }
+
+    if (resolved.registry || resolved.type === 'directory') {
+      // a version (1.2.3) OR range (^1.2.3) OR directory (file:../foo-pkg)
+      depVersions[depName] = `${savePrefix}${depVersion}`
+      depCollection[depName] = `file:${path.relative(this.location, tarball)}`
+    } else {
+      console.log('TODO: handle tarball dep, read from `localDependencies`', resolved)
+    }
+  }
+
+  getDependencyCollection(depName: string) {
     // first, try runtime dependencies
     let depCollection = this.dependencies
 
@@ -175,40 +206,6 @@ export default class Package {
     if (!depCollection || !depCollection[depName]) {
       depCollection = this.devDependencies
     }
-
-    if (!depCollection) {
-      depCollection = {}
-    }
-
-    if (resolved.registry || resolved.type === 'directory') {
-      // a version (1.2.3) OR range (^1.2.3) OR directory (file:../foo-pkg)
-      depCollection[depName] = `${savePrefix}${depVersion}`
-    } else if (resolved.gitCommittish) {
-      // a git url with matching committish (#v1.2.3 or #1.2.3)
-      const match = /^\D*/.exec(resolved.gitCommittish)
-      const [tagPrefix] = match!
-
-      // update committish
-      const {hosted} = resolved
-      hosted.committish = `${tagPrefix}${depVersion}`
-
-      // always serialize the full url (identical to previous resolved.saveSpec)
-      depCollection[depName] = hosted.toString({
-        noGitPlus: false,
-        noCommittish: false,
-      })
-    } else if (resolved.gitRange) {
-      // a git url with matching gitRange (#semver:^1.2.3)
-      const {hosted} = resolved // take that, lint!
-      hosted.committish = `semver:${savePrefix}${depVersion}`
-
-      // always serialize the full url (identical to previous resolved.saveSpec)
-      depCollection[depName] = hosted.toString({
-        noGitPlus: false,
-        noCommittish: false,
-      })
-    } else {
-      console.log('TODO: handle tarball dep, read from `localDependencies`')
-    }
+    return depCollection
   }
 }

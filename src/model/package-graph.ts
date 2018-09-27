@@ -1,3 +1,4 @@
+import * as log from 'npmlog'
 import * as npa from 'npm-package-arg'
 import * as semver from 'semver'
 
@@ -12,7 +13,7 @@ type MapKeys<T> = NonNullable<
 /**
  * Represents a node in a PackageGraph.
  */
-class PackageGraphNode {
+export class PackageGraphNode {
   readonly name!: string
   readonly location!: string
   readonly prereleaseId?: string
@@ -62,9 +63,12 @@ class PackageGraphNode {
   satisfies({gitCommittish, gitRange, fetchSpec}: npa.Result) {
     const range = gitCommittish || gitRange || fetchSpec
     if (range == null) throw new Error('TODO')
+    log.silly('PACKAGE_GRAPH', '%s @ %s satisfies %s ?', this.name, this.version, range)
     return semver.satisfies(this.version, range)
   }
 }
+
+export type PackageGraphType = 'dependencies' | 'allDependencies'
 
 /**
  * A PackageGraph.
@@ -77,7 +81,7 @@ class PackageGraphNode {
 export default class PackageGraph extends Map<string, PackageGraphNode> {
   constructor(
     packages: Package[],
-    graphType = 'allDependencies',
+    graphType: PackageGraphType = 'allDependencies',
     forceLocal?: boolean,
   ) {
     super(

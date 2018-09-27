@@ -9,5 +9,6 @@ if (importLocal(__filename)) {
     'using local version of chimer',
   )
 } else {
+  ;(require('source-map-support') as typeof import('source-map-support')).install()
   ;(require('.') as typeof import('.')).default(process.argv.slice(2))
 }
