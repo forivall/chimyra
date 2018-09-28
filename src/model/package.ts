@@ -144,7 +144,7 @@ export default class Package {
   }
   // write changes to disk
   async serialize() {
-    return writePkg(this.manifestLocation, this._pkg)
+    return writePkg(this.manifestLocation, this._pkg, {detectIndent: true})
   }
 
   // TODO: update to set up local dependencies

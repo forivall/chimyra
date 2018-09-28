@@ -123,7 +123,7 @@ export default class PackCommand extends Command {
     const maniBackup = `${curPkg.manifestLocation}.orig`
 
     this.logger.verbose(prefix, 'mv %s %s', curPkg.manifestLocation, maniBackup)
-    await fs.rename(curPkg.manifestLocation, maniBackup)
+    await fs.copy(curPkg.manifestLocation, maniBackup)
 
     this.logger.verbose(prefix, 'update package.json')
     await curPkg.serialize()
