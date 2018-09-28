@@ -349,6 +349,8 @@ function fromPackTarget(project: Project | undefined, mani: npa.Result) {
 
   const name = path.dirname(packFile)
 
+  if (name === '.') return
+
   const basename = path.basename(packFile, '.tgz')
   const prefix = escapeScoped(name)
   const version = basename.startsWith(`${prefix}-`)
