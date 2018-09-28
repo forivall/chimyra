@@ -1,15 +1,42 @@
+import * as log from 'npmlog'
 import * as yargs from 'yargs/yargs'
 
-import * as log from 'npmlog'
-import {name} from './constants'
+import {CommandArgs} from './command'
 import {PackageJson} from '@npm/types'
+import lazyExport from './helpers/lazy-export'
+import {name} from './constants'
 
 // tslint:disable-next-line:no-var-requires no-require-imports
 const pkg: PackageJson = require('../package.json')
 
+export function globalOptions(y: yargs.Argv) {
+  const opts: {[key: string]: yargs.Options} = {
+    loglevel: {
+      defaultDescription: 'info',
+      describe: 'What level of logs to report.',
+      type: 'string',
+    },
+    progress: {
+      defaultDescription: 'true',
+      describe:
+        'Enable progress bars. (Always off in CI)\nPass --no-progress to disable.',
+      type: 'boolean',
+    },
+    'dry-run': {
+      describe:
+        'Run only the `initialize()` stage of the command, and describe command state',
+      type: 'boolean',
+    },
+  }
+
+  return y
+    .options(opts)
+    .group(Object.keys(opts).concat(['help', 'version']), 'Global Options:')
+}
+
 export function cli(argv?: string[], cwd?: string) {
   const y = yargs(argv, cwd, require)
-  return y
+  return globalOptions(y)
     .usage('Usage: $0 <command> [options]')
     .demandCommand()
     .recommendCommands()
@@ -19,10 +46,7 @@ export function cli(argv?: string[], cwd?: string) {
       const actual: Error & {code?: number} = err || new Error(msg)
 
       if (/Did you mean/.test(actual.message)) {
-        log.error(
-          name,
-          `Unknown command "${(y.parsed as yargs.Detailed).argv._[0]}"`,
-        )
+        log.error(name, `Unknown command "${(y.parsed as yargs.Detailed).argv._[0]}"`)
       }
 
       log.error(name, actual.message)
@@ -35,7 +59,7 @@ export function cli(argv?: string[], cwd?: string) {
 }
 
 export default function main(argv: string[]) {
-  const ctx = {
+  const ctx: CommandArgs = {
     chimerVersion: pkg.version,
   }
 
@@ -44,7 +68,6 @@ export default function main(argv: string[]) {
     .parse(argv, ctx)
 }
 
-import lazyExport from './helpers/lazy-export'
 declare const DevCommand: typeof import('./commands/dev').default
 // tslint:disable-next-line:no-require-imports
 lazyExport(module, 'DevCommand', () => require('./commands/dev').default)
