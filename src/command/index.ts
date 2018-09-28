@@ -1,7 +1,6 @@
 import * as _ from 'lodash'
 import * as execa from 'execa'
 import * as npmlog from 'npmlog'
-import * as path from 'path'
 
 import PackageGraph, {PackageGraphNode} from '../model/package-graph'
 
@@ -9,25 +8,20 @@ import Package from '../model/package'
 import Project from '../model/project'
 import ValidationError from '../errors/validation'
 import cleanStack from './helpers/clean-stack'
+import isSubdir from '../helpers/is-subdir'
 import logPackageError from './helpers/log-package-error'
-import {name} from '../constants'
 import warnIfHanging from './helpers/warn-if-hanging'
 import writeLogFile from '../helpers/write-log-file'
-import isSubdir from '../helpers/is-subdir';
 
 const DEFAULT_CONCURRENCY = 4
 
 export interface CommandArgs {
-  chimerVersion: string
+  chimerVersion?: string
   cwd?: string
   composed?: string
   ci?: boolean
   progress?: boolean
   loglevel?: npmlog.LogLevel
-  /** @internal */
-  onResolved?(): void
-  /** @internal */
-  onRejected?(reason: any): void
 }
 
 export interface CommandEnv {
@@ -52,34 +46,43 @@ export type StdIOOptions =
 // stop typescript from complaining about read only fields
 const log = npmlog
 
+interface CommandContext {
+  project?: Project
+  packageGraph?: PackageGraph
+  currentPackageNode?: PackageGraphNode
+  currentPackage?: Package
+  /** @internal */
+  onResolved?(): any
+  /** @internal */
+  onRejected?(reason: any): any
+}
+
+type Resolve<T> = T extends PromiseLike<infer U> ? U : T
+type CommandResult<T extends Command> = Resolve<ReturnType<T['execute']>>
+
 export default abstract class Command {
   // "FooCommand" => "foo"
   name = this.constructor.name.replace(/Command$/, '').toLowerCase()
   composed: boolean
-  protected _args: CommandArgs
-  protected _env!: CommandEnv
-  options!: GlobalOptions
   project: Project
-  concurrency!: number
-  toposort!: boolean
-  execOpts!: execa.Options
+  protected _env: CommandEnv = {
+    ci: false /* require('is-ci') */,
+  }
+  protected _args: CommandArgs
+  options: GlobalOptions = {}
+  concurrency = DEFAULT_CONCURRENCY
+  toposort = true
+  execOpts: execa.Options = {}
   logger!: npmlog.LogTrackerGroup
   packageGraph!: PackageGraph
   currentPackageNode?: PackageGraphNode
   currentPackage?: Package
 
-  then: (
-    onResolved: CommandArgs['onResolved'],
-    onRejected: CommandArgs['onRejected'],
-  ) => Promise<void>
-  catch: (onRejected: CommandArgs['onRejected']) => Promise<void>
+  then: Promise<CommandResult<this>>['then']
+  catch: Promise<CommandResult<this>>['catch']
 
-  constructor(args: CommandArgs) {
-    log.pause()
-    log.heading = name
-
+  constructor(args: CommandArgs, context: CommandContext = {}) {
     this._args = args
-    log.silly('argv', '%O', args)
 
     // composed commands are called from other commands, like publish -> version
     this.composed = typeof args.composed === 'string' && args.composed !== this.name
@@ -89,59 +92,23 @@ export default abstract class Command {
       log.notice('cli', `v${args.chimerVersion}`)
     }
 
-    this.project = new Project(args.cwd)
+    this.project = context.project || new Project(args.cwd)
 
-    // launch the command
-    // TODO: convert to an async function
-    let runner = new Promise<void>((resolve, reject) => {
-      // run everything inside a Promise chain
-      let chain = Promise.resolve()
+    if (context.packageGraph) this.packageGraph = context.packageGraph
 
-      chain = chain.then(() => this.configureEnvironment())
-      chain = chain.then(() => this.configureOptions())
-      chain = chain.then(() => this.configureProperties())
-      chain = chain.then(() => this.configureLogging())
-      chain = chain.then(() => this.runValidations())
-      chain = chain.then(() => this.runPreparations())
-      chain = chain.then(() => this.runCommand())
+    this.currentPackageNode = context.currentPackageNode
+    this.currentPackage = context.currentPackage
+    if (!this.currentPackage && this.currentPackageNode) {
+      this.currentPackage = this.currentPackageNode.pkg
+    }
 
-      chain.then(
-        (result) => {
-          warnIfHanging()
-
-          resolve(result)
-        },
-        (err) => {
-          if (err.pkg) {
-            // Cleanly log specific package error details
-            logPackageError(err)
-          } else if (err.name !== 'ValidationError') {
-            // npmlog does some funny stuff to the stack by default,
-            // so pass it directly to avoid duplication.
-            log.error('', '%s', cleanStack(err, this.constructor.name))
-          }
-
-          // ValidationError does not trigger a log dump, nor do external package errors
-          if (err.name !== 'ValidationError' && !err.pkg) {
-            writeLogFile(this.project.rootPath)
-          }
-
-          warnIfHanging()
-
-          // error code is handled by cli.fail()
-          reject(err)
-        },
-      )
-    })
+    // Run command
+    let runner = this.run()
 
     // passed via yargs context in tests, never actual CLI
     /* istanbul ignore else */
-    if (args.onResolved || args.onRejected) {
-      runner = runner.then(args.onResolved, args.onRejected)
-
-      // when nested, never resolve inner with outer callbacks
-      delete args.onResolved // eslint-disable-line no-param-reassign
-      delete args.onRejected // eslint-disable-line no-param-reassign
+    if (context.onResolved || context.onRejected) {
+      runner = runner.then(context.onResolved, context.onRejected)
     }
 
     // proxy "Promise" methods to "private" instance
@@ -160,30 +127,54 @@ export default abstract class Command {
     return []
   }
 
-  configureEnvironment() {
-    // eslint-disable-next-line global-require
-    // const ci: typeof import('is-ci') = require("is-ci");
-    const ci = false
-    let loglevel: npmlog.LogLevel | undefined
-    let progress
+  async run() {
+    let result: CommandResult<this>
+    // launch the command
+    try {
+      await this.configureEnvironment()
+      await this.configureOptions()
+      await this.configureProperties()
+      await this.configureLogging()
+      await this.runValidations()
+      await this.runPreparations()
+      result = await this.runCommand()
+    } catch (err) {
+      if (err.pkg) {
+        // Cleanly log specific package error details
+        logPackageError(err)
+      } else if (err.name !== 'ValidationError') {
+        // npmlog does some funny stuff to the stack by default,
+        // so pass it directly to avoid duplication.
+        log.error('', '%s', cleanStack(err, this.constructor.name))
+      }
 
+      // ValidationError does not trigger a log dump, nor do external package errors
+      if (err.name !== 'ValidationError' && !err.pkg) {
+        writeLogFile(this.project.rootPath)
+      }
+
+      warnIfHanging()
+
+      // error code is handled by cli.fail()
+      throw err
+    }
+    warnIfHanging()
+
+    return result
+  }
+
+  configureEnvironment() {
     /* istanbul ignore next */
-    if (ci || !process.stderr.isTTY) {
+    if (this._env.ci || !process.stderr.isTTY) {
       log.disableColor()
-      progress = false
+      this._env.progress = false
     } else if (!process.stdout.isTTY) {
       // stdout is being piped, don't log non-errors or progress bars
-      progress = false
-      loglevel = 'error'
+      this._env.progress = false
+      this._env.loglevel = 'error'
     } else if (process.stderr.isTTY) {
       log.enableColor()
       log.enableUnicode()
-    }
-
-    this._env = {
-      ci,
-      progress,
-      loglevel,
     }
   }
 
@@ -210,10 +201,12 @@ export default abstract class Command {
   }
 
   configureProperties() {
-    const {concurrency, sort, maxBuffer} = this.options
+    const concurrency = Number(this.options.concurrency)
+    if (concurrency && concurrency >= 1) this.concurrency = concurrency
 
-    this.concurrency = Math.max(1, Number(concurrency) || DEFAULT_CONCURRENCY)
-    this.toposort = sort === undefined || sort
+    const {sort, maxBuffer} = this.options
+    if (sort !== undefined) this.toposort = sort
+
     this.execOpts = {
       cwd: this.project.rootPath,
       maxBuffer,
@@ -276,37 +269,40 @@ export default abstract class Command {
   }
 
   async runPreparations() {
-    const project = this.project
-    const packages = await project.getPackages()
-    this.packageGraph = new PackageGraph(packages, {project})
+    if (!this.packageGraph) {
+      const project = this.project
+      const packages = await project.getPackages()
 
-    for (const pkgNode of this.packageGraph.values()) {
-      if (!isSubdir(pkgNode.location, '.')) continue
+      this.packageGraph = new PackageGraph(packages, {project})
+    }
 
-      if (this.currentPackage) {
-        throw new ValidationError(
-          'COMMAND',
-          'Found two possible packages in current directory',
-        )
+    if (!this.currentPackageNode) {
+      for (const pkgNode of this.packageGraph.values()) {
+        if (!isSubdir(pkgNode.location, '.')) continue
+
+        if (this.currentPackageNode) {
+          throw new ValidationError(
+            'COMMAND',
+            'Found two possible packages in current directory',
+          )
+        }
+
+        if (!this.currentPackage) {
+          this.currentPackage = pkgNode.pkg
+        }
+        this.currentPackageNode = pkgNode
       }
-
-      this.currentPackage = pkgNode.pkg
-      this.currentPackageNode = pkgNode
     }
   }
 
-  runCommand() {
-    return Promise.resolve()
-      .then(() => this.initialize())
-      .then((proceed) => {
-        if (proceed !== false) {
-          return this.execute()
-        }
-        // early exits set their own exitCode (if non-zero)
-      })
+  async runCommand() {
+    const proceed = (await Promise.resolve(this.initialize())) as boolean | undefined
+    if (proceed !== false) {
+      return this.execute()
+    }
   }
 
   abstract initialize(): void | boolean | Promise<void | boolean>
 
-  abstract execute(): void | Promise<void>
+  abstract execute(): any | Promise<any>
 }
