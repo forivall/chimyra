@@ -1,8 +1,11 @@
 import * as _ from 'lodash'
 import * as execa from 'execa'
 import * as npmlog from 'npmlog'
+import * as path from 'path'
 
-import PackageGraph from '../model/package-graph'
+import PackageGraph, {PackageGraphNode} from '../model/package-graph'
+
+import Package from '../model/package'
 import Project from '../model/project'
 import ValidationError from '../errors/validation'
 import cleanStack from './helpers/clean-stack'
@@ -10,6 +13,7 @@ import logPackageError from './helpers/log-package-error'
 import {name} from '../constants'
 import warnIfHanging from './helpers/warn-if-hanging'
 import writeLogFile from '../helpers/write-log-file'
+import isSubdir from '../helpers/is-subdir';
 
 const DEFAULT_CONCURRENCY = 4
 
@@ -17,10 +21,13 @@ export interface CommandArgs {
   chimerVersion: string
   cwd?: string
   composed?: string
+  ci?: boolean
+  progress?: boolean
+  loglevel?: npmlog.LogLevel
   /** @internal */
-  onResolved(): void
+  onResolved?(): void
   /** @internal */
-  onRejected(reason: any): void
+  onRejected?(reason: any): void
 }
 
 export interface CommandEnv {
@@ -29,7 +36,7 @@ export interface CommandEnv {
   loglevel?: npmlog.LogLevel
 }
 
-export interface CommandOptions extends CommandArgs, CommandEnv {
+export interface GlobalOptions extends CommandArgs {
   concurrency?: number | string
   sort?: boolean
   maxBuffer?: number
@@ -51,13 +58,15 @@ export default abstract class Command {
   composed: boolean
   protected _args: CommandArgs
   protected _env!: CommandEnv
-  options!: CommandOptions
+  options!: GlobalOptions
   project: Project
   concurrency!: number
   toposort!: boolean
   execOpts!: execa.Options
   logger!: npmlog.LogTrackerGroup
   packageGraph!: PackageGraph
+  currentPackageNode?: PackageGraphNode
+  currentPackage?: Package
 
   then: (
     onResolved: CommandArgs['onResolved'],
@@ -73,8 +82,7 @@ export default abstract class Command {
     log.silly('argv', '%O', args)
 
     // composed commands are called from other commands, like publish -> version
-    this.composed =
-      typeof args.composed === 'string' && args.composed !== this.name
+    this.composed = typeof args.composed === 'string' && args.composed !== this.name
 
     if (!this.composed) {
       // composed commands have already logged the version
@@ -268,8 +276,23 @@ export default abstract class Command {
   }
 
   async runPreparations() {
-    const packages = await this.project.getPackages()
-    this.packageGraph = new PackageGraph(packages)
+    const project = this.project
+    const packages = await project.getPackages()
+    this.packageGraph = new PackageGraph(packages, {project})
+
+    for (const pkgNode of this.packageGraph.values()) {
+      if (!isSubdir(pkgNode.location, '.')) continue
+
+      if (this.currentPackage) {
+        throw new ValidationError(
+          'COMMAND',
+          'Found two possible packages in current directory',
+        )
+      }
+
+      this.currentPackage = pkgNode.pkg
+      this.currentPackageNode = pkgNode
+    }
   }
 
   runCommand() {
