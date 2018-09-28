@@ -1,8 +1,13 @@
+import * as log from 'npmlog'
 import * as npa from 'npm-package-arg'
+import * as path from 'path'
 import * as semver from 'semver'
 
+import Package, {escapeScoped} from './package'
+import {isSubdirPath} from '../helpers/is-subdir'
+
 import {Dependencies} from '@npm/types'
-import Package from './package'
+import Project from './project'
 import ValidationError from '../errors/validation'
 
 type MapKeys<T> = NonNullable<
@@ -12,7 +17,7 @@ type MapKeys<T> = NonNullable<
 /**
  * Represents a node in a PackageGraph.
  */
-class PackageGraphNode {
+export class PackageGraphNode {
   readonly name!: string
   readonly location!: string
   readonly prereleaseId?: string
@@ -56,14 +61,40 @@ class PackageGraphNode {
   /**
    * Determine if the Node satisfies a resolved semver range.
    * @see https://github.com/npm/npm-package-arg#result-object
-   *
-   * @param resolved npm-package-arg Result object
    */
-  satisfies({gitCommittish, gitRange, fetchSpec}: npa.Result) {
+  satisfies({gitCommittish, gitRange, fetchSpec, file, chi}: NpaResultExt) {
+    if (file && chi && chi.fetchSpec && semver.satisfies(file.version, chi.fetchSpec)) {
+      return semver.satisfies(this.version, chi.fetchSpec)
+    }
+    if (file) {
+      return semver.eq(this.version, file.version)
+    }
     const range = gitCommittish || gitRange || fetchSpec
-    if (range == null) throw new Error('TODO')
+    if (range == null) throw new Error('TODO: unexpected condition')
     return semver.satisfies(this.version, range)
   }
+}
+
+export type PackageGraphType = 'dependencies' | 'allDependencies'
+
+const tuple = <A, B>(v: [A, B]) => v
+
+export interface PackageGraphOptions {
+  graphType?: PackageGraphType
+  forceLocal?: boolean
+  project?: Project
+}
+
+export interface NpaResultExt extends npa.Result {
+  chi?: npa.Result
+  file?: {
+    name: string
+    version: string
+  }
+}
+
+function isProject(p: Package[] | Project): p is Project {
+  return typeof (p as any).getPackages === 'function'
 }
 
 /**
@@ -77,17 +108,9 @@ class PackageGraphNode {
 export default class PackageGraph extends Map<string, PackageGraphNode> {
   constructor(
     packages: Package[],
-    graphType = 'allDependencies',
-    forceLocal?: boolean,
+    {graphType = 'allDependencies', forceLocal, project}: PackageGraphOptions = {},
   ) {
-    super(
-      packages.map(
-        (pkg): [string, PackageGraphNode] => [
-          pkg.name,
-          new PackageGraphNode(pkg),
-        ],
-      ),
-    )
+    super(packages.map((pkg) => tuple([pkg.name, new PackageGraphNode(pkg)])))
 
     if (packages.length !== this.size) {
       // weed out the duplicates
@@ -105,27 +128,21 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
         if (locations.length > 1) {
           throw new ValidationError(
             'ENAME',
-            [
-              `Package name "${name}" used in multiple packages:`,
-              ...locations,
-            ].join('\n\t'),
+            [`Package name "${name}" used in multiple packages:`, ...locations].join(
+              '\n\t',
+            ),
           )
         }
       }
     }
 
     this.forEach((currentNode, currentName) => {
-      const graphDependencies: Dependencies =
-        graphType === 'dependencies'
-          ? {
-              ...currentNode.pkg.optionalDependencies,
-              ...currentNode.pkg.dependencies,
-            }
-          : {
-              ...currentNode.pkg.devDependencies,
-              ...currentNode.pkg.optionalDependencies,
-              ...currentNode.pkg.dependencies,
-            }
+      const graphDependencies: Dependencies = {
+        ...(graphType === 'dependencies' ? {} : currentNode.pkg.devDependencies),
+        ...currentNode.pkg.optionalDependencies,
+        ...currentNode.pkg.dependencies,
+      }
+      const chiDependencies = currentNode.pkg.chimerDependencies || {}
 
       Object.keys(graphDependencies).forEach((depName) => {
         const depNode = this.get(depName)
@@ -133,12 +150,30 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
         // As they apparently have no intention of being compatible, we have to do it for them.
         // @see https://github.com/yarnpkg/yarn/issues/4212
         const spec = graphDependencies[depName].replace(/^link:/, 'file:')
-        const resolved = npa.resolve(depName, spec, currentNode.location)
+        const resolved: NpaResultExt = npa.resolve(depName, spec, currentNode.location)
+
+        const chiSpec = chiDependencies[depName]
+        if (chiSpec) {
+          resolved.chi = npa.resolve(depName, chiSpec, currentNode.location)
+        }
+
+        const fileSpec = fromPackTarget(project, resolved)
+        if (fileSpec) {
+          resolved.file = fileSpec
+        }
 
         if (!depNode) {
           // it's an external dependency, store the resolution and bail
           return currentNode.externalDependencies.set(depName, resolved)
         }
+
+        log.silly(
+          'PACKAGE_GRAPH',
+          'Checking if %s@%s satisfies %j',
+          depName,
+          depNode.version,
+          resolved,
+        )
 
         if (
           forceLocal ||
@@ -250,9 +285,9 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
 
         if (siblingDependents.has(currentName)) {
           // a transitive cycle
-          const cycleDependentName = Array.from(
-            dependentNode.localDependencies,
-          ).find(([key]) => currentNode.localDependents.has(key))
+          const cycleDependentName = Array.from(dependentNode.localDependencies).find(
+            ([key]) => currentNode.localDependents.has(key),
+          )
           const pathToCycle = (step as (string | npa.Result)[])
             .slice()
             .reverse()
@@ -302,4 +337,30 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
       node.localDependents.delete(candidateNode.name)
     })
   }
+}
+
+function fromPackTarget(project: Project | undefined, mani: npa.Result) {
+  if (!project || !npaResultIs('file', mani)) return
+  if (!mani.fetchSpec) throw new Error('TODO')
+
+  const packFile = path.relative(project.buildRoot, mani.fetchSpec)
+
+  if (!isSubdirPath(packFile)) return
+
+  const name = path.dirname(packFile)
+
+  const basename = path.basename(packFile, '.tgz')
+  const prefix = escapeScoped(name)
+  const version = basename.startsWith(`${prefix}-`)
+    ? basename.slice(prefix.length + 1)
+    : basename
+
+  return {name, version}
+}
+
+function npaResultIs<T extends npa.Result['type']>(
+  type: T,
+  r: npa.Result,
+): r is npa.Result & {type: T} {
+  return r.type === type
 }

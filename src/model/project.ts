@@ -4,10 +4,10 @@ import * as log from 'npmlog'
 import * as npm from '@npm/types'
 import * as path from 'path'
 
+import {Argument1, Argument2} from '../helpers/types'
 import {configFile, fallbackConfigFile, name} from '../constants'
 import loadJsonFile, {sync as loadJsonFileSync} from 'load-json-file'
 
-import {Argument2, Argument1} from '../helpers/types'
 import Package from './package'
 import ValidationError from '../errors/validation'
 import pMap from 'p-map'
@@ -21,9 +21,11 @@ type EntryItem = Argument1<NonNullable<GlobbyOptions['transform']>>
 
 export default class Project {
   static readonly PACKAGE_GLOB = 'packages/*'
+  static readonly BUILD_FOLDER = 'build'
   static readonly LICENSE_GLOB = 'LICEN{S,C}E{,.*}'
   config: {
     packages?: string[]
+    buildDir?: string
     command?: {
       [key: string]: any
     }
@@ -77,6 +79,14 @@ export default class Project {
 
   get packageConfigs(): string[] {
     return this.config.packages || [Project.PACKAGE_GLOB]
+  }
+
+  get buildRoot(): string {
+    return path.join(this.rootPath, this.buildDir)
+  }
+
+  get buildDir(): string {
+    return this.config.buildDir || Project.BUILD_FOLDER
   }
 
   get packageParentDirs() {
