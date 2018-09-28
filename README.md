@@ -1,6 +1,6 @@
 # Chimer
 
-_/kai'mir/_
+_/kai'mir,/kai'mɘr//_
 
 A tool for managing JavaScript projects with bundled internal dependencies.
 
