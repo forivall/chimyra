@@ -1,8 +1,8 @@
 import * as util from 'util'
 
-import Command, {CommandArgs} from '../command'
-
 import {Argv} from 'yargs/yargs'
+
+import Command, {CommandArgs} from '../command'
 
 // tslint:disable-next-line:no-require-imports
 import indent = require('indent-string')

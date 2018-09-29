@@ -1,17 +1,17 @@
-import * as _ from 'lodash'
 import * as execa from 'execa'
+import * as _ from 'lodash'
 import * as npmlog from 'npmlog'
 
-import PackageGraph, {PackageGraphNode} from '../model/package-graph'
-
+import ValidationError from '../errors/validation'
+import isSubdir from '../helpers/is-subdir'
+import writeLogFile from '../helpers/write-log-file'
+import PackageGraph from '../model/graph'
+import PackageGraphNode from '../model/graph-node'
 import Package from '../model/package'
 import Project from '../model/project'
-import ValidationError from '../errors/validation'
 import cleanStack from './helpers/clean-stack'
-import isSubdir from '../helpers/is-subdir'
 import logPackageError from './helpers/log-package-error'
 import warnIfHanging from './helpers/warn-if-hanging'
-import writeLogFile from '../helpers/write-log-file'
 
 const DEFAULT_CONCURRENCY = 4
 
@@ -46,7 +46,7 @@ export type StdIOOptions =
 // stop typescript from complaining about read only fields
 const log = npmlog
 
-interface CommandContext {
+export interface CommandContext {
   project?: Project
   packageGraph?: PackageGraph
   currentPackageNode?: PackageGraphNode

@@ -1,11 +1,13 @@
-import * as log from 'npmlog'
-import * as npa from 'npm-package-arg'
 import * as path from 'path'
+
+import * as npa from 'npm-package-arg'
+import * as log from 'npmlog'
 import * as writePkg from 'write-pkg'
 
 import {Dependencies, PackageJson} from '@npm/types'
 
 import ValidationError from '../errors/validation'
+import {getPackTarget} from '../helpers/package-arg'
 import shallowCopy from '../helpers/shallow-copy'
 
 function binSafeName(result: npa.Result) {
@@ -20,15 +22,6 @@ export interface ChimerPackageJson extends PackageJson {
   optionalDependencies?: Dependencies
   chimerDependencies?: Dependencies
   [key: string]: any
-}
-
-export function escapeScoped(name: string) {
-  // see https://github.com/npm/cli/blob/1bc5b8c/lib/pack.js#L65
-  return name[0] === '@' ? name.substr(1).replace(/\//g, '-') : name
-}
-
-export function getPackTarget(mani: {name: string; version: string}) {
-  return `${escapeScoped(mani.name)}-${mani.version}.tgz`
 }
 
 export default class Package {
@@ -157,11 +150,7 @@ export default class Package {
     const depName = resolved.name
 
     if (depName === null) {
-      throw new ValidationError(
-        'updateLocalDependency',
-        'Could not get name from %O',
-        resolved,
-      )
+      throw new ValidationError('ENAME', 'Could not get name from %O', resolved)
     }
 
     const depCollection = this.getDependencyCollection(depName)
@@ -177,15 +166,15 @@ export default class Package {
       return
     }
 
-    let depVersions = this.chimerDependencies
-    if (!depVersions) {
-      depVersions = {}
-      this.set('chimerDependencies', depVersions)
+    let chiDependencies = this.chimerDependencies
+    if (!chiDependencies) {
+      chiDependencies = {}
+      this.set('chimerDependencies', chiDependencies)
     }
 
     if (resolved.registry || resolved.type === 'directory') {
       // a version (1.2.3) OR range (^1.2.3) OR directory (file:../foo-pkg)
-      depVersions[depName] = `${savePrefix}${depVersion}`
+      chiDependencies[depName] = `${savePrefix}${depVersion}`
       depCollection[depName] = `file:${path.relative(this.location, tarball)}`
     } else {
       console.log('TODO: handle tarball dep, read from `localDependencies`', resolved)
