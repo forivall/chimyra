@@ -79,6 +79,9 @@
     "@types/write-json-file": "^2.2.1",
     "@types/write-pkg": "^3.1.0",
     "ava": "^0.25.0",
+    "import-sort-cli": "^5.2.0",
+    "import-sort-parser-typescript": "^5.0.0",
+    "import-sort-style-module": "^5.0.0",
     "prettier": "1.14.3",
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
@@ -86,5 +89,11 @@
     "tslint-xo": "^0.9.0",
     "typescript": "^3.0.3",
     "xo": "^0.23.0"
+  },
+  "importSort": {
+    ".ts": {
+      "parser": "typescript",
+      "style": "module"
+    }
   }
 }
