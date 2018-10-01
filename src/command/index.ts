@@ -4,6 +4,7 @@ import * as npmlog from 'npmlog'
 
 import ValidationError from '../errors/validation'
 import isSubdir from '../helpers/is-subdir'
+import {Resolve} from '../helpers/types'
 import writeLogFile from '../helpers/write-log-file'
 import PackageGraph from '../model/graph'
 import PackageGraphNode from '../model/graph-node'
@@ -57,7 +58,6 @@ export interface CommandContext {
   onRejected?(reason: any): any
 }
 
-type Resolve<T> = T extends PromiseLike<infer U> ? U : T
 type CommandResult<T extends Command> = Resolve<ReturnType<T['execute']>>
 
 export default abstract class Command {

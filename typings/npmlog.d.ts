@@ -1,7 +1,7 @@
 // See https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 import * as npmlog from 'npmlog'
 
-import {Tracker, TrackerStream, TrackerGroup} from 'are-we-there-yet'
+import {Tracker, TrackerStream, TrackerGroup, TrackerBase} from 'are-we-there-yet'
 
 export type Methods<T> = {[K in keyof T]: T[K] extends Function ? K : never}
 
@@ -43,9 +43,15 @@ declare module 'npmlog' {
     | 'addLevel'
   >
 
+  export type LogTrackerObject = LogTracker | LogTrackerStream | LogTrackerGroup
   export type LogTracker = Tracker & LoggerMixin
   export type LogTrackerStream = TrackerStream & LoggerMixin
-  export type LogTrackerGroup = TrackerGroup & LoggerMixin
+  export interface LogTrackerGroup extends TrackerGroup, LoggerMixin {
+    addUnit(tracker: TrackerBase, weight?: number): LogTrackerObject
+    newGroup(name?: string, weight?: number): LogTrackerGroup
+    newItem(name?: string, todo?: number, weight?: number): LogTracker
+    newStream(name?: string, todo?: number, weight?: number): LogTrackerStream
+  }
 
   export function newItem(
     name?: string,
