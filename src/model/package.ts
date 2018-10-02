@@ -115,6 +115,9 @@ export default class Package {
   get chimerDependencies() {
     return this._pkg.chimerDependencies
   }
+  get bundleDependencies() {
+    return this._pkg.bundleDependencies || this._pkg.bundledDependencies
+  }
   get packTarget() {
     return getPackTarget(this)
   }

@@ -296,7 +296,7 @@ export default abstract class Command {
   }
 
   async runCommand() {
-    const proceed = (await Promise.resolve(this.initialize())) as boolean | undefined
+    const proceed = (await this.initialize()) as boolean | undefined
     if (proceed !== false) {
       return this.execute()
     }
