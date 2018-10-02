@@ -1,5 +1,6 @@
 import * as npa from 'npm-package-arg'
 import * as log from 'npmlog'
+import iterate from 'iterare'
 
 import {Dependencies} from '@npm/types'
 
@@ -121,7 +122,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
   }
 
   get rawPackageList() {
-    return Array.from(this.values()).map((node) => node.pkg)
+    return iterate(this.values()).map((node) => node.pkg).toArray()
   }
 
   /**
@@ -185,7 +186,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
    * @returns [Set<String[]>, Set<PackageGraphNode>]
    */
   partitionCycles() {
-    const cyclePaths = new Set<(string | npa.Result)[]>()
+    const cyclePaths = new Set<string[]>()
     const cycleNodes = new Set<PackageGraphNode>()
 
     this.forEach((currentNode, currentName) => {
@@ -214,10 +215,10 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
 
         if (siblingDependents.has(currentName)) {
           // a transitive cycle
-          const cycleDependentName = Array.from(dependentNode.localDependencies).find(
+          const cycleDependentName = [...dependentNode.localDependencies.keys()].find(
             ([key]) => currentNode.localDependents.has(key),
           )
-          const pathToCycle = (step as (string | npa.Result)[])
+          const pathToCycle = step
             .slice()
             .reverse()
             .concat(cycleDependentName!)
@@ -236,7 +237,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
       this.prune(...cycleNodes)
     }
 
-    return [cyclePaths, cycleNodes]
+    return tuple([cyclePaths, cycleNodes])
   }
 
   /**

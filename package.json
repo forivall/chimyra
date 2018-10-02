@@ -46,6 +46,7 @@
     "globby": "^8.0.1",
     "import-local": "^2.0.0",
     "indent-string": "^3.2.0",
+    "iterare": "^1.0.2",
     "load-json-file": "^5.1.0",
     "lodash": "^4.17.11",
     "npm-package-arg": "^6.1.0",
