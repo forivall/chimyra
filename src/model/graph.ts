@@ -1,11 +1,9 @@
-import * as npa from 'npm-package-arg'
-import * as log from 'npmlog'
-import iterate from 'iterare'
-
 import {Dependencies} from '@npm/types'
+import iterate from 'iterare'
+import * as log from 'npmlog'
 
 import ValidationError from '../errors/validation'
-import {NpaResultExt, fromPackTarget} from '../helpers/package-arg'
+import {resolvePackageArg} from '../helpers/package-arg'
 import {tuple} from '../helpers/types'
 import PackageGraphNode from './graph-node'
 import Package from './package'
@@ -23,10 +21,6 @@ export interface PackageGraphOptions {
   project?: Project
 }
 
-function isProject(p: Package[] | Project): p is Project {
-  return typeof (p as any).getPackages === 'function'
-}
-
 /**
  * A PackageGraph.
  * @param packages An array of Packages to build the graph out of.
@@ -37,23 +31,25 @@ function isProject(p: Package[] | Project): p is Project {
  */
 export default class PackageGraph extends Map<string, PackageGraphNode> {
   constructor(
-    packages: Package[],
+    packages: Iterator<Package> | Iterable<Package>,
     {graphType = 'allDependencies', forceLocal, project}: PackageGraphOptions = {},
   ) {
-    super(packages.map((pkg) => tuple([pkg.name, new PackageGraphNode(pkg)])))
-
-    if (packages.length !== this.size) {
-      // weed out the duplicates
-      const seen = new Map<string, string[]>()
-
-      for (const {name, location} of packages) {
+    const seen = new Map<string, string[]>()
+    super(
+      iterate(packages).map((pkg) => {
+        const name = pkg.name
         if (seen.has(name)) {
-          seen.get(name)!.push(location)
+          seen.get(name)!.push(pkg.location)
         } else {
-          seen.set(name, [location])
+          seen.set(name, [pkg.location])
         }
-      }
 
+        return tuple([name, new PackageGraphNode(pkg)])
+      }),
+    )
+
+    if (seen.size !== this.size) {
+      // weed out the duplicates
       for (const [name, locations] of seen) {
         if (locations.length > 1) {
           throw new ValidationError(
@@ -76,21 +72,14 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
 
       Object.keys(graphDependencies).forEach((depName) => {
         const depNode = this.get(depName)
-        // Yarn decided to ignore https://github.com/npm/npm/pull/15900 and implemented "link:"
-        // As they apparently have no intention of being compatible, we have to do it for them.
-        // @see https://github.com/yarnpkg/yarn/issues/4212
-        const spec = graphDependencies[depName].replace(/^link:/, 'file:')
-        const resolved: NpaResultExt = npa.resolve(depName, spec, currentNode.location)
 
-        const chiSpec = chiDependencies[depName]
-        if (chiSpec) {
-          resolved.chi = npa.resolve(depName, chiSpec, currentNode.location)
-        }
-
-        const fileSpec = fromPackTarget(project, resolved)
-        if (fileSpec) {
-          resolved.file = fileSpec
-        }
+        const resolved = resolvePackageArg(
+          graphDependencies[depName],
+          chiDependencies[depName],
+          depName,
+          currentNode.location,
+          project,
+        )
 
         if (!depNode) {
           // it's an external dependency, store the resolution and bail
@@ -115,6 +104,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
           depNode.localDependents.set(currentName, currentNode)
         } else {
           // non-matching semver of a local dependency
+          // TODO: save as a "nearby" dependency, as it can be built from history
           currentNode.externalDependencies.set(depName, resolved)
         }
       })
@@ -122,7 +112,9 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
   }
 
   get rawPackageList() {
-    return iterate(this.values()).map((node) => node.pkg).toArray()
+    return iterate(this.values())
+      .map((node) => node.pkg)
+      .toArray()
   }
 
   /**

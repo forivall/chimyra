@@ -4,6 +4,7 @@ import * as npa from 'npm-package-arg'
 
 import Project from '../model/project'
 import {isSubdirPath} from './is-subdir'
+
 export interface NpaResultExt extends npa.Result {
   chi?: npa.Result
   file?: BuildFile
@@ -54,4 +55,30 @@ function npaResultIs<T extends npa.Result['type']>(
   r: npa.Result,
 ): r is npa.Result & {type: T} {
   return r.type === type
+}
+
+export function resolvePackageArg(
+  spec: string,
+  chiSpec: string | undefined,
+  depName: string,
+  where?: string,
+  project?: Project,
+) {
+  // Yarn decided to ignore https://github.com/npm/npm/pull/15900 and implemented "link:"
+  // As they apparently have no intention of being compatible, we have to do it for them.
+  // @see https://github.com/yarnpkg/yarn/issues/4212
+  const specFixed = spec.replace(/^link:/, 'file:')
+
+  const resolved: NpaResultExt = npa.resolve(depName, specFixed, where)
+
+  if (chiSpec) {
+    resolved.chi = npa.resolve(depName, chiSpec, where)
+  }
+
+  const fileSpec = fromPackTarget(project, resolved)
+  if (fileSpec) {
+    resolved.file = fileSpec
+  }
+
+  return resolved
 }

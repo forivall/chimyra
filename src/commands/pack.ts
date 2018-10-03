@@ -2,6 +2,7 @@ import * as path from 'path'
 
 import {Dependencies} from '@npm/types'
 import * as fs from 'fs-extra'
+import {iterate} from 'iterare'
 import * as npa from 'npm-package-arg'
 import {Argv} from 'yargs/yargs'
 
@@ -12,6 +13,7 @@ import {throwIfUncommitted} from '../helpers/check-working-tree'
 import * as childProcess from '../helpers/child-process'
 import describeRef from '../helpers/describe-ref'
 import * as homedir from '../helpers/homedir'
+import isSubdir from '../helpers/is-subdir'
 import getExecOpts from '../helpers/npm-exec-opts'
 import Package from '../model/package'
 
@@ -70,6 +72,21 @@ export default class PackCommand extends Command {
 
     // TODO: check if any non-bundled dependencies are defined as links, fail if they are
     // and instruct the user to run `prepare`
+    const unpackableLinks = iterate(this.currentPackageNode.localDependencies.values())
+      .filter(
+        (mani) =>
+          mani.type === 'directory' &&
+          !isSubdir(this.currentPackage.location, mani.fetchSpec!),
+      )
+      .map((mani) => mani.name!)
+      .toArray()
+    if (unpackableLinks.length > 0) {
+      throw new ValidationError(
+        'ENOLINK',
+        'Cannot pack symlinks to %s',
+        unpackableLinks.join(', '),
+      )
+    }
 
     const curPkg = this.currentPackage
     this.originalPackage = new Package(curPkg.toJSON(), curPkg.location, curPkg.rootPath)
@@ -196,16 +213,10 @@ export default class PackCommand extends Command {
     this.logger.verbose(prefix, 'mv %s %s', pkg.manifestLocation, maniBackup)
     await fs.rename(maniBackup, pkg.manifestLocation)
 
-    const absPath = homedir.compact(buildFile)
-    const relPath = path.relative(process.cwd(), buildFile)
-    this.logger.info(prefix, 'Wrote package to %s', minLength(absPath, relPath))
+    this.logger.info(prefix, 'Wrote package to %s', homedir.minimize(buildFile))
 
     return buildFile
   }
-}
-
-function minLength(a: string, b: string) {
-  return a.length <= b.length ? a : b
 }
 
 export function handler(argv: Args) {

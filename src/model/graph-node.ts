@@ -1,4 +1,3 @@
-import * as npa from 'npm-package-arg'
 import * as semver from 'semver'
 
 import ValidationError from '../errors/validation'
@@ -15,8 +14,8 @@ export default class PackageGraphNode {
 
   protected _pkg!: Package
 
-  externalDependencies: Map<string, npa.Result>
-  localDependencies: Map<string, npa.Result>
+  externalDependencies: Map<string, NpaResultExt>
+  localDependencies: Map<string, NpaResultExt>
   localDependents: Map<string, PackageGraphNode>
   constructor(pkg: Package) {
     Object.defineProperties(this, {

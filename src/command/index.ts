@@ -2,6 +2,7 @@ import * as execa from 'execa'
 import * as _ from 'lodash'
 import * as npmlog from 'npmlog'
 
+import {name} from '../constants'
 import ValidationError from '../errors/validation'
 import isSubdir from '../helpers/is-subdir'
 import {Resolve} from '../helpers/types'
@@ -89,7 +90,7 @@ export default abstract class Command {
 
     if (!this.composed) {
       // composed commands have already logged the version
-      log.notice('cli', `v${args.chimerVersion}`)
+      log.notice(name, `v${args.chimerVersion}`)
     }
 
     this.project = context.project || new Project(args.cwd)
@@ -145,7 +146,7 @@ export default abstract class Command {
       } else if (err.name !== 'ValidationError') {
         // npmlog does some funny stuff to the stack by default,
         // so pass it directly to avoid duplication.
-        log.error('', '%s', cleanStack(err, this.constructor.name))
+        log.error(name, '%s', cleanStack(err, this.constructor.name))
       }
 
       // ValidationError does not trigger a log dump, nor do external package errors

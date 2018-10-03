@@ -1,16 +1,20 @@
 import * as log from 'npmlog'
 
 import ValidationError from '../errors/validation'
-import PackageGraph, {PackageGraphType} from '../model/graph'
+import PackageGraph, {PackageGraphOptions} from '../model/graph'
 import Package from '../model/package'
+import {IterableOrIterator} from './types'
+
+export interface BatchPackagesOptions extends PackageGraphOptions {
+  rejectCycles?: boolean
+}
 
 export default function batchPackages(
-  packagesToBatch: Package[],
-  rejectCycles = false,
-  graphType?: PackageGraphType,
+  packagesToBatch: IterableOrIterator<Package>,
+  options: BatchPackagesOptions = {},
 ) {
   // create a new graph because we will be mutating it
-  const graph = new PackageGraph(packagesToBatch, {graphType})
+  const graph = new PackageGraph(packagesToBatch, options)
   const [cyclePaths, cycleNodes] = graph.partitionCycles()
   const batches = []
 
@@ -19,6 +23,7 @@ export default function batchPackages(
       .concat([...cyclePaths].map((cycle) => cycle.join(' -> ')))
       .join('\n')
 
+    const {rejectCycles = false} = options
     if (rejectCycles) {
       throw new ValidationError('ECYCLE', cycleMessage)
     }
