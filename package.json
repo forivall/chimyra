@@ -54,6 +54,7 @@
     "p-map": "^2.0.0",
     "read-cmd-shim": "^1.0.1",
     "read-pkg": "^4.0.1",
+    "reversed": "^1.1.2",
     "semver": "^5.5.1",
     "source-map-support": "^0.5.9",
     "strong-log-transformer": "^2.0.0",

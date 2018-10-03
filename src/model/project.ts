@@ -1,5 +1,6 @@
 import * as cosmiconfig from 'cosmiconfig'
 import * as globby from 'globby'
+import iterate from 'iterare'
 import * as log from 'npmlog'
 import * as npm from '@npm/types'
 import * as path from 'path'
@@ -19,6 +20,28 @@ import globParent = require('glob-parent')
 export type GlobbyOptions = NonNullable<Argument2<typeof globby>>
 type EntryItem = Argument1<NonNullable<GlobbyOptions['transform']>>
 
+function loadConfig(explorer: cosmiconfig.Explorer, cwd?: string) {
+  let loaded: cosmiconfig.CosmiconfigResult
+
+  try {
+    loaded = explorer.searchSync(cwd)
+  } catch (err) {
+    // redecorate JSON syntax errors, avoid debug dump
+    if (err.name === 'JSONError') {
+      throw new ValidationError(err.name, err.message)
+    }
+
+    // re-throw other errors, could be ours or third-party
+    throw err
+  }
+
+  if (loaded == null) {
+    throw new ValidationError('LoadFail', 'Cosmiconfig failed to load config')
+  }
+
+  return loaded
+}
+
 export default class Project {
   static readonly PACKAGE_GLOB = 'packages/*'
   static readonly BUILD_FOLDER = 'build'
@@ -28,7 +51,8 @@ export default class Project {
     buildDir?: string
     command?: {
       [key: string]: any
-    }
+    },
+    ignore?: string[]
   }
   rootConfigLocation: string
   rootPath: string
@@ -52,23 +76,7 @@ export default class Project {
       },
     })
 
-    let loaded: cosmiconfig.CosmiconfigResult
-
-    try {
-      loaded = explorer.searchSync(cwd)
-    } catch (err) {
-      // redecorate JSON syntax errors, avoid debug dump
-      if (err.name === 'JSONError') {
-        throw new ValidationError(err.name, err.message)
-      }
-
-      // re-throw other errors, could be ours or third-party
-      throw err
-    }
-
-    if (loaded == null) {
-      throw new ValidationError('LoadFail', 'Cosmiconfig failed to load config')
-    }
+    const loaded = loadConfig(explorer, cwd)
 
     this.config = loaded.config
     this.rootConfigLocation = loaded.filepath
@@ -165,6 +173,7 @@ export default class Project {
       followSymlinkedDirectories: false,
       // POSIX results always need to be normalized
       transform: fpNormalize,
+      ignore: this.config.ignore
     }
 
     if (this.packageConfigs.some((cfg) => cfg.indexOf('**') > -1)) {
@@ -184,28 +193,29 @@ export default class Project {
     return globOpts
   }
 
-  findFiles<T = string>(
+  async findFiles<T = string>(
     fileName: string,
     fileMapper?: ((fp: string[]) => T[] | PromiseLike<T[]>) | null,
     customGlobOpts?: GlobbyOptions,
   ) {
     const options = this.findFilesGlobOptions(customGlobOpts)
-    return pMap(
+    const nestedResults = await pMap(
       this.packageConfigs.sort(),
-      (globPath) => {
-        let chain = globby(path.join(globPath, fileName), options)
+      async (globPath) => {
+        const results = await globby(path.join(globPath, fileName), options)
 
         // fast-glob does not respect pattern order, so we re-sort by absolute path
-        chain = chain.then((results) => results.sort())
+        results.sort()
 
         if (fileMapper) {
-          return chain.then(fileMapper)
+          return fileMapper(results)
         }
 
-        return chain as Promise<(T extends string ? T : never)[]>
+        return results as (T extends string ? T : never)[]
       },
       {concurrency: 4},
-    ).then(flattenResults)
+    )
+    return iterate(nestedResults).flatten().toArray()
   }
 
   getPackages() {
@@ -238,10 +248,6 @@ export default class Project {
 }
 
 export const getPackages = (cwd: string) => new Project(cwd).getPackages()
-
-function flattenResults<T>(results: (T | T[])[]) {
-  return results.reduce((acc: T[], result) => acc.concat(result), [])
-}
 
 function fpNormalize(fp: EntryItem) {
   const s = typeof fp === 'string' ? fp : fp.path

@@ -27,6 +27,9 @@
     // broken with `unknown`
     "no-unnecessary-type-assertion": {
       "severity": "warn"
-    }
+    },
+    "underscore-consistent-invocation": {
+      "severity": "warn"
+    },
   }
 }
