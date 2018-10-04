@@ -36,6 +36,8 @@ export default class Package {
   readonly scripts: ChimerPackageJson['scripts']
   readonly manifestLocation!: string
   readonly nodeModulesLocation!: string
+  readonly lockfileLocation!: string
+  readonly shrinkwrapLocation!: string
   readonly binLocation!: string
 
   private readonly _pkg!: ChimerPackageJson
@@ -86,6 +88,12 @@ export default class Package {
       },
       nodeModulesLocation: {
         value: path.join(location, 'node_modules'),
+      },
+      lockfileLocation: {
+        value: path.join(location, 'package-lock.json'),
+      },
+      shrinkwrapLocation: {
+        value: path.join(location, 'npm-shrinkwrap.json'),
       },
       binLocation: {
         value: path.join(location, 'node_modules', '.bin'),

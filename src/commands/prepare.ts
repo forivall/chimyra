@@ -85,6 +85,7 @@ export default class PrepareCommand extends Command {
 
     // ensure that the pack files exist
     const updates = new Map<string, Package[]>()
+    const pkgName = new Map<string, string>()
     const graph = new PackageGraph(iterate(this.batchedDeps).flatten(), {
       project: this.project,
     })
@@ -99,8 +100,12 @@ export default class PrepareCommand extends Command {
         const tgzPath = mani.fetchSpec
         if (updates.has(tgzPath)) {
           updates.get(tgzPath)!.push(pkg)
+          if (pkgName.get(tgzPath) !== mani.name) {
+            throw new Error('wtf')
+          }
         } else {
           updates.set(tgzPath, [pkg])
+          pkgName.set(tgzPath, mani.name!)
         }
       }
     }
@@ -130,7 +135,16 @@ export default class PrepareCommand extends Command {
               .join(',')})`,
         )
         .join('\n')
-      throw new ValidationError('ENOPKGFILE', 'Missing tarballs:%s', `\n${msg}`)
+      const missingPackageNames = iterate(missingPackages.keys()).map((k) => pkgName.get(k)).toSet()
+      const hasProductionDep = iterate(missingPackages).some(([tgzPath, dependents]) =>
+        dependents.some((pkg) => {
+          return Object.keys(pkg.dependencies || {}).some((name) => missingPackageNames.has(name))
+        })
+      )
+      if (hasProductionDep) {
+        throw new ValidationError('ENOPKGFILE', 'Missing tarballs:%s', `\n${msg}`)
+      }
+      this.logger.warn(name, 'Missing tarballs:%s', `\n${msg}`)
     }
 
     // if packages need to be created at other git versions, fail

@@ -2,26 +2,44 @@ import * as util from 'util'
 
 import {Argv} from 'yargs/yargs'
 
-import Command, {CommandArgs} from '../command'
+import Command, {CommandArgs, GlobalOptions} from '../command'
 
 // tslint:disable-next-line:no-require-imports
 import indent = require('indent-string')
+import ValidationError from '../errors/validation';
 
 export const command = 'debug'
 export const describe = 'Internal debugging command'
 
 export function builder(y: Argv) {
-  return y
+  return y.options({
+    'current-only': {
+      type: 'boolean'
+    }
+  })
 }
 
 const formatIndent = (o: any) =>
   indent(util.inspect(o, {colors: true, compact: false}), 4)
 
 // tslint:disable-next-line:no-empty-interface
-export interface Args extends CommandArgs {}
+export interface Options extends GlobalOptions {
+  currentOnly?: boolean
+}
 
 export default class DevCommand extends Command {
+  options!: Options
   initialize() {
+    if (this.options.currentOnly) {
+      const pkg = this.currentPackage
+      if (!pkg) throw new ValidationError('debug', 'must be in package')
+      const g = this.packageGraph.get(pkg.name)!
+      console.log(pkg)
+      console.log('version:', pkg.version)
+      console.log('prereleaseId:', g.prereleaseId)
+      return
+    }
+
     for (const [n, p] of this.packageGraph) {
       console.log(`${n}:`)
       console.log(`  localDependencies:`)
@@ -46,6 +64,6 @@ export default class DevCommand extends Command {
   }
 }
 
-export function handler(argv: Args) {
+export function handler(argv: Options) {
   return new DevCommand(argv)
 }

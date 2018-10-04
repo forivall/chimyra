@@ -40,7 +40,7 @@ const NUM_COLORS = colorWheel.length
 export function exec(
   command: string,
   args: ReadonlyArray<string>,
-  opts: ChildProcessOptions,
+  opts?: ChildProcessOptions,
 ) {
   const options: ChildProcessOptions = {stdio: 'pipe', ...opts}
   const spawned = spawnProcess(command, args, options)
@@ -51,7 +51,7 @@ export function exec(
 export function execSync(
   command: string,
   args: ReadonlyArray<string>,
-  opts: execa.SyncOptions,
+  opts?: execa.SyncOptions,
 ) {
   return execa.sync(command, args, opts).stdout
 }
@@ -59,7 +59,7 @@ export function execSync(
 export function spawn(
   command: string,
   args: ReadonlyArray<string>,
-  opts: ChildProcessOptions,
+  opts?: ChildProcessOptions,
 ) {
   const options: ChildProcessOptions = {...opts, stdio: 'inherit'}
   const spawned = spawnProcess(command, args, options)
@@ -71,10 +71,10 @@ export function spawn(
 export function spawnStreaming(
   command: string,
   args: ReadonlyArray<string>,
-  opts: execa.Options,
-  prefix: string,
+  opts?: execa.Options,
+  prefix?: string,
 ) {
-  const options = {...opts}
+  const options: execa.Options = {...opts}
   options.stdio = ['ignore', 'pipe', 'pipe']
 
   const colorName = colorWheel[children % NUM_COLORS]

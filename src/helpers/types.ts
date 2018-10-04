@@ -6,3 +6,6 @@ export type Resolve<T> = T extends PromiseLike<infer U> ? U : T
 export const tuple = <A, B>(v: [A, B]) => v
 
 export type IterableOrIterator<T> = Iterable<T> | Iterator<T>
+
+export const roArray = <T>() => <U extends T>(v: U[]): ReadonlyArray<U> => v
+export const roObj = <T>() => <U extends T>(v: U): Readonly<U> => v
