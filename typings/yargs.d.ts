@@ -8,8 +8,11 @@ declare module 'yargs/yargs' {
   ): Yargs.Argv
 
   namespace Yargs {
+    // reexport for simplicity
     type Options = yargs.Options
+    type Arguments = yargs.Arguments
 
+    // patch with `detailed`
     interface Argv extends yargs.Argv {
       parsed: Detailed | false
       exit(code: number, err: Error): void

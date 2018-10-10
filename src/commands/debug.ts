@@ -2,7 +2,7 @@ import * as util from 'util'
 
 import {Argv} from 'yargs/yargs'
 
-import Command, {CommandArgs, GlobalOptions} from '../command'
+import Command, {GlobalOptions} from '../command'
 
 // tslint:disable-next-line:no-require-imports
 import indent = require('indent-string')
@@ -59,6 +59,7 @@ export default class DevCommand extends Command {
       }
     }
   }
+  dryRun: undefined
   execute() {
     /* empty */
   }

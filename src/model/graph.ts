@@ -30,6 +30,7 @@ export interface PackageGraphOptions {
  * @param forceLocal Force all local dependencies to be linked.
  */
 export default class PackageGraph extends Map<string, PackageGraphNode> {
+  readonly createdWithProject: boolean
   constructor(
     packages: Iterator<Package> | Iterable<Package>,
     {graphType = 'allDependencies', forceLocal, project}: PackageGraphOptions = {},
@@ -61,6 +62,8 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
         }
       }
     }
+
+    this.createdWithProject = Boolean(project)
 
     this.forEach((currentNode, currentName) => {
       const graphDependencies: Dependencies = {
@@ -109,6 +112,13 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
         }
       })
     })
+  }
+
+  rebuild(options: PackageGraphOptions = {}) {
+    if (this.createdWithProject && !options.project) {
+      throw new Error('Must rebuild with project')
+    }
+    return new PackageGraph(iterate(this.values()).map((node) => node.pkg), options)
   }
 
   get rawPackageList() {

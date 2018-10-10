@@ -1,5 +1,5 @@
 import ValidationError from '../errors/validation'
-import describeRef, {DescribeRefOptions, GitRef} from './describe-ref'
+import describeRef, {DescribeRefOptions, GitRef} from './git/describe-ref'
 
 export default async function checkWorkingTree(options: DescribeRefOptions) {
   const result = describeRef(options)
@@ -16,7 +16,7 @@ export default async function checkWorkingTree(options: DescribeRefOptions) {
 }
 
 export function isReleased({refCount}: GitRef) {
-  return refCount === '0'
+  return refCount === 0
 }
 
 export function throwIfReleased(ref: GitRef) {

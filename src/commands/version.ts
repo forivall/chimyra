@@ -8,14 +8,14 @@ import {Argv} from 'yargs/yargs'
 
 import Command, {GlobalOptions} from '../command'
 import {name} from '../constants'
-import ValidationError from '../errors/validation'
+import {NoCurrentPackage} from '../errors/validation'
 import gitAdd from '../helpers/git/add'
 import gitCommit from '../helpers/git/commit'
 import gitTag from '../helpers/git/create-tag'
 import * as PromptUtilities from '../helpers/prompt'
 import PackageGraphNode from '../model/graph-node'
 import Package from '../model/package'
-import {roArray} from '../helpers/types';
+import {roArray, never} from '../helpers/types';
 
 export const command = 'version [bump]'
 export const describe = 'Update the version of the current package'
@@ -74,7 +74,7 @@ export default class VersionCommand extends Command {
 
   async initialize() {
     if (!this.currentPackage || !this.currentPackageNode) {
-      throw new ValidationError('ENOTPKGDIR', 'Must be run from package')
+      throw new NoCurrentPackage()
     }
 
     const newVersion = await this.getNewVersion()
@@ -100,12 +100,19 @@ export default class VersionCommand extends Command {
 
     const pkg = this.currentPackage
     if (increment && isVersionBump(increment)) {
-      return semver.inc(pkg.version, increment, preid || (isPrerelease && existingPreId))
+      newVersion = semver.inc(pkg.version, increment, preid || (isPrerelease && existingPreId))
+      if (newVersion) {
+        return newVersion
+      } else {
+        this.logger.info(name, 'Could not generate new version')
+      }
     }
 
     const newPre = preid || existingPreId || 'alpha'
 
-    return promptVersion(pkg.version, pkg.name, newPre)
+    return promptVersion(pkg.version, pkg.name, {
+      prereleaseId: newPre
+    })
   }
 
   async updateVersionInFile(filePath: string, version: string) {
@@ -122,6 +129,7 @@ export default class VersionCommand extends Command {
     // TODO: show a confirmation prompt
   }
 
+  dryRun: undefined
   async execute() {
     // TODO: run package lifecycle, like preversion, etc.
     if (!this.tagOnly) {
@@ -156,6 +164,24 @@ export function isVersionBump(increment: string): increment is semver.ReleaseTyp
   return (releaseTypes as string[]).indexOf(increment) >= 0
 }
 
+export type VersionBump = semver.ReleaseType | 'PRERELEASE' | 'CUSTOM' | 'CURRENT'
+const allBumps: VersionBump[] = [
+  'patch',
+  'minor',
+  'major',
+  'prepatch',
+  'preminor',
+  'premajor',
+  'prerelease',
+  'PRERELEASE',
+  'CUSTOM',
+  'CURRENT',
+]
+export interface PromptVersionOptions {
+  bumps?: VersionBump[]
+  message?: string
+  prereleaseId?: string
+}
 /**
  * A predicate that prompts user to select/construct a version bump.
  * It can be run per-package (independent) or globally (fixed).
@@ -164,52 +190,47 @@ export function isVersionBump(increment: string): increment is semver.ReleaseTyp
  * @property name (Only used in independent mode)
  * @property prereleaseId
  */
-function promptVersion(currentVersion: string, name: string, prereleaseId: string) {
-  const patch = semver.inc(currentVersion, 'patch')
-  const minor = semver.inc(currentVersion, 'minor')
-  const major = semver.inc(currentVersion, 'major')
-  const prepatch = semver.inc(currentVersion, 'prepatch', prereleaseId)
-  const preminor = semver.inc(currentVersion, 'preminor', prereleaseId)
-  const premajor = semver.inc(currentVersion, 'premajor', prereleaseId)
-  const prerelease = semver.inc(currentVersion, 'prerelease', prereleaseId)
+export async function promptVersion(currentVersion: string, name: string, options: PromptVersionOptions = {}) {
+  const prereleaseId = options.prereleaseId || 'pre'
+  const versionChoices = (options.bumps || allBumps).map((bump) => {
+    switch (bump) {
+      case 'PRERELEASE': return {value: 'PRERELEASE', name: 'Custom Prerelease'}
+      case 'CUSTOM': return {value: 'CUSTOM', name: 'Custom Version'}
+      case 'CURRENT': return {value: 'CURRENT', name: 'Tag Only'}
+      default:
+      const name = _.startCase(bump)
+      if (bump.startsWith('pre')) {
+        return {value: semver.inc(currentVersion, bump, prereleaseId), name}
+      }
+      return {value: semver.inc(currentVersion, bump), name}
+    }
+  })
 
-  const message = `Select a new version ${
+  const message = `${options.message || 'Select a new version'} ${
     name ? `for ${name} ` : ''
   }(currently ${currentVersion})`
 
-  return PromptUtilities.select(message, {
-    choices: [
-      {value: patch, name: `Patch (${patch})`},
-      {value: minor, name: `Minor (${minor})`},
-      {value: major, name: `Major (${major})`},
-      {value: prepatch, name: `Prepatch (${prepatch})`},
-      {value: preminor, name: `Preminor (${preminor})`},
-      {value: premajor, name: `Premajor (${premajor})`},
-      {value: prerelease, name: `Prerelease (${prerelease})`},
-      {value: 'PRERELEASE', name: 'Custom Prerelease'},
-      {value: 'CUSTOM', name: 'Custom Version'},
-      {value: 'CURRENT', name: 'Tag Only'},
-    ].filter((choice): choice is {value: string; name: string} => choice.value != null),
-  }).then((choice) => {
-    if (choice === 'CUSTOM') {
-      return PromptUtilities.input('Enter a custom version', {
-        filter: semver.valid,
-        // semver.valid() always returns null with invalid input
-        validate: (v) => v !== null || 'Must be a valid semver version',
-      })
-    }
-
-    if (choice === 'PRERELEASE') {
-      const defaultVersion = semver.inc(currentVersion, 'prerelease', prereleaseId)
-      const prompt = `(default: "${prereleaseId}", yielding ${defaultVersion})`
-
-      return PromptUtilities.input(`Enter a prerelease identifier ${prompt}`, {
-        filter: (v) => semver.inc(currentVersion, 'prerelease', v || prereleaseId),
-      })
-    }
-
-    if (choice === 'CURRENT') return currentVersion
-
-    return choice
+  const choice = await PromptUtilities.select(message, {
+    choices: versionChoices.filter((choice): choice is {value: string; name: string} => choice.value != null),
   })
+  if (choice === 'CUSTOM') {
+    return PromptUtilities.input('Enter a custom version', {
+      filter: semver.valid,
+      // semver.valid() always returns null with invalid input
+      validate: (v) => v !== null || 'Must be a valid semver version',
+    })
+  }
+
+  if (choice === 'PRERELEASE') {
+    const defaultVersion = semver.inc(currentVersion, 'prerelease', prereleaseId)
+    const prompt = `(default: "${prereleaseId}", yielding ${defaultVersion})`
+
+    return PromptUtilities.input(`Enter a prerelease identifier ${prompt}`, {
+      filter: (v) => semver.inc(currentVersion, 'prerelease', v || prereleaseId),
+    })
+  }
+
+  if (choice === 'CURRENT') return currentVersion
+
+  return choice
 }

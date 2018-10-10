@@ -7,15 +7,18 @@ import * as npa from 'npm-package-arg'
 import {Argv} from 'yargs/yargs'
 
 import Command, {CommandArgs, CommandContext} from '../command'
-import ValidationError from '../errors/validation'
-import {getBuildDir} from '../helpers/build-paths'
-import {throwIfUncommitted} from '../helpers/check-working-tree'
+import ValidationError, {NoCurrentPackage} from '../errors/validation'
+import {getBuildDir, getBuildFile} from '../helpers/build-paths'
 import * as childProcess from '../helpers/child-process'
-import describeRef from '../helpers/describe-ref'
+import describeRef, {GitRef} from '../helpers/git/describe-ref'
 import * as homedir from '../helpers/homedir'
 import isSubdir from '../helpers/is-subdir'
 import getExecOpts from '../helpers/npm-exec-opts'
 import Package from '../model/package'
+import hasDirectoryChanged from '../helpers/git/has-directory-changed'
+import * as semver from 'semver'
+import {promptVersion} from './version'
+import {name} from '../constants'
 
 export const command = 'pack'
 export const describe = 'Run `npm pack`, on current package with preprocessing & reset'
@@ -24,7 +27,7 @@ export function builder(y: Argv) {
   return y.options({
     force: {
       type: 'boolean',
-      default: true,
+      default: false,
       description: 'Overwrite package file, even if it already exists',
     },
   })
@@ -50,6 +53,36 @@ export async function exists(file: string) {
     }))
 }
 
+export function formatVersionWithBuild(v: semver.SemVer): string {
+  let out = `${v.major}.${v.minor}.${v.patch}`
+  if (v.prerelease.length) {
+    out += '-' + v.prerelease.join('.')
+  }
+  if (v.build.length) {
+    out += '+' + v.build.join('.')
+  }
+  return out
+}
+
+export async function makeGitVersion(pkg: Package, ref: GitRef) {
+  let version = semver.parse(pkg.version)
+  if (!version) throw new Error('Invalid current version: ' + pkg.version)
+
+  if (version.prerelease.length === 0) {
+    const versionBase = await promptVersion(pkg.version, pkg.name, {
+      bumps: ['patch', 'minor', 'major'],
+      message: 'Select version base for prerelease package:',
+    })
+    version = semver.parse(versionBase)
+    if (!version) throw new Error('Invalid prompted version' + version)
+  }
+
+  version.prerelease.push(String((ref.refCount || 1) - 1))
+  version.build.push(ref.sha)
+
+  return formatVersionWithBuild(version)
+}
+
 export default class PackCommand extends Command {
   // Override to change ? to !
   currentPackage!: Package
@@ -63,20 +96,42 @@ export default class PackCommand extends Command {
     this.force = args.force !== false
   }
 
-  initialize() {
+  async initialize() {
     if (!this.currentPackage || !this.currentPackageNode) {
-      throw new ValidationError(prefix, 'Must be run from a package folder')
+      throw new NoCurrentPackage()
+    }
+    const pkg = this.currentPackage
+
+    const ref = await describeRef({pkg, matchPkg: 'name'})
+
+    if (ref.isDirty && await hasDirectoryChanged({cwd: pkg.location})) {
+      // TODO: allow dirty with flag, need to count how many already built dirty versions exist
+      throw new ValidationError('EDIRTY', 'Current package directory cannot be dirty')
     }
 
-    // TODO: update version based on git sha & dirty, optional to turn off
+    // update version based on git sha, TODO: add option to turn off
+    if (pkg.version !== ref.lastVersion || ref.refCount !== 0) {
+      const gitVersion = await makeGitVersion(pkg, ref)
+      this.logger.info(name, 'Using non-authoritative version %s', gitVersion)
+      pkg.version = gitVersion
+    }
 
-    // TODO: check if any non-bundled dependencies are defined as links, fail if they are
+    const buildFile = getBuildFile(this.project, pkg)
+    if (await exists(buildFile)) {
+      throw new ValidationError(
+        'EPKGBUILT',
+        'Package %s already exists. Use --force to overwrite.',
+        homedir.minimize(buildFile),
+      )
+    }
+    this.logger.info(name, 'Target: %s', buildFile)
+    if (!!true) return
+
+    // check if any non-bundled dependencies are defined as links, fail if they are
     // and instruct the user to run `prepare`
     const unpackableLinks = iterate(this.currentPackageNode.localDependencies.values())
       .filter(
-        (mani) =>
-          mani.type === 'directory' &&
-          !isSubdir(this.currentPackage.location, mani.fetchSpec!),
+        (mani) => mani.type === 'directory' && !isSubdir(pkg.location, mani.fetchSpec!),
       )
       .map((mani) => mani.name!)
       .toArray()
@@ -88,16 +143,10 @@ export default class PackCommand extends Command {
       )
     }
 
-    const curPkg = this.currentPackage
-    this.originalPackage = new Package(curPkg.toJSON(), curPkg.location, curPkg.rootPath)
     this.setAbsolutePath('dependencies')
     // TODO: these two can probably be optional
     this.setAbsolutePath('optionalDependencies')
     this.setAbsolutePath('devDependencies')
-  }
-
-  verifyWorkingTreeClean() {
-    return describeRef(this.execOpts).then(throwIfUncommitted)
   }
 
   setAbsolutePath(
@@ -110,9 +159,6 @@ export default class PackCommand extends Command {
       }
       return deps
     }
-
-    // TODO: if version doesn't match current state, update version with suffix
-    // of current git sha and "-DIRTY" if current directory is dirty
 
     const where = this.currentPackage.location
     for (const depName of Object.keys(deps)) {

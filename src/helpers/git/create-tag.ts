@@ -11,7 +11,7 @@ export default function gitTag(
   {signGitTag}: Args,
   opts?: childProcess.ChildProcessOptions,
 ) {
-  const tag = `${pkg.name}-v${pkg.version}`
+  const tag = gitTagName(pkg)
   const msg = `${pkg.name} v${pkg.version}`
 
   log.silly('gitTag', tag)
@@ -24,4 +24,9 @@ export default function gitTag(
 
   log.verbose('git', '', args)
   return childProcess.exec('git', args, opts)
+}
+
+// TODO: it appears that lerna uses `${pkg.name}@${pkg.version}`
+export function gitTagName(pkg: {name: string, version: string}) {
+  return `${pkg.name}-v${pkg.version}`
 }

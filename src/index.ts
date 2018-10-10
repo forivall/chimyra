@@ -64,13 +64,16 @@ export default function main(argv: string[]) {
   }
 
   return cli()
+    // TODO: explicitly list commands with imports
     .commandDir('./commands')
     .parse(argv, ctx)
 }
 
+// typecheck command modules
+
 declare const DevCommand: typeof import('./commands/dev').default
 // tslint:disable-next-line:no-require-imports
-lazyExport(module, 'DevCommand', () => require('./commands/dev').default)
+lazyExport(module, 'DevCommand', () => require('./commands/dev').default as typeof DevCommand)
 
 export {DevCommand}
 

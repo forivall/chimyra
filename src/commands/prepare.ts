@@ -5,22 +5,31 @@ import pMap from 'p-map'
 import {Argv} from 'yargs/yargs'
 
 import Command, {CommandArgs} from '../command'
-import {name} from '../constants'
-import ValidationError from '../errors/validation'
+import {name as prefix} from '../constants'
+import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import batchPackages from '../helpers/batch-packages'
 import {getBuildFile} from '../helpers/build-paths'
 import * as homedir from '../helpers/homedir'
 import {tuple} from '../helpers/types'
-import PackageGraph from '../model/graph'
 import PackageGraphNode from '../model/graph-node'
 import Package from '../model/package'
+import hasDirectoryChanged from '../helpers/git/has-directory-changed';
+import describeRef from '../helpers/git/describe-ref';
+import {makeGitVersion} from './pack';
+import PackageGraph from '../model/graph';
 
 export const command = 'prepare'
 export const aliases = ['prep']
 export const describe = 'Normalize package.json and generate tarballs for dependencies'
 
 export function builder(y: Argv) {
-  return y
+  return y.options({
+    'dev-deps': {
+      desc: 'Also prepare dev dependencies',
+      type: 'boolean',
+      default: false
+    }
+  })
 }
 
 const omitUndefined = _.partial(_.omitBy, _, _.isUndefined)
@@ -36,10 +45,12 @@ const simplifyPkg = (p: Package) =>
     chimerDependencies: p.chimerDependencies,
   })
 
-// tslint:disable-next-line:no-empty-interface
-export interface Args extends CommandArgs {}
+export interface Args extends CommandArgs {
+  devDeps?: boolean
+}
 
 export default class PrepareCommand extends Command {
+  options!: Args
   transDeps!: Map<string, Package>
   batchedDeps!: Package[][]
   batchedUpdates!: Package[][]
@@ -47,8 +58,18 @@ export default class PrepareCommand extends Command {
   async initialize() {
     // TODO: check that versions are compatible
 
-    if (!this.currentPackage || !this.currentPackageNode) {
-      throw new ValidationError('PREPARE', 'Must be run from a package folder')
+    if (!this.currentPackage) {
+      throw new NoCurrentPackage()
+    }
+
+    if (!this.options.devDeps) {
+      this.logger.verbose(prefix, 'Rebuilding package graph...')
+      this.packageGraph = this.packageGraph.rebuild({project: this.project, graphType: 'dependencies'})
+      this.currentPackageNode = this.packageGraph.get(this.currentPackage.name)
+    }
+
+    if (!this.currentPackageNode) {
+      throw new NoCurrentPackage()
     }
 
     // update representation of package.json replacing directory based file:
@@ -65,27 +86,33 @@ export default class PrepareCommand extends Command {
     // TODO: check if packages can be packaged at defined versions using current git state
     // allow flag to override, as long as version range matches current dev state
 
-    this.batchedUpdates = iterate(this.batchedDeps)
-      .map((batch) => {
-        this.logger.verbose(name, 'Will update batch from', batch.map(simplifyPkg))
-        const batchUpdates = batch.filter((pkg) => this.resolveLocalDependencyLinks(pkg))
-        this.logger.verbose(
-          name,
-          batchUpdates.length > 0 ? 'will update batch to  ' : 'no updates in batch',
-          batchUpdates.map(simplifyPkg),
-        )
-        return batchUpdates
-      })
-      .filter((batch) => batch.length > 0)
-      .toArray()
+    this.batchedUpdates = []
+    for (const batch of this.batchedDeps) {
+      const batchUpdates: Package[] = []
+      for (const pkg of batch) {
+        if (await this.resolveLocalDependencyLinks(pkg)) {
+          batchUpdates.push(pkg)
+        }
+      }
+      this.logger.verbose(
+        prefix,
+        batchUpdates.length > 0 ? 'will update batch to  ' : 'no updates in batch',
+        batchUpdates.map(simplifyPkg),
+      )
+      if (batchUpdates.length > 0) {
+        this.batchedUpdates.push(batchUpdates)
+      }
+    }
 
     if (this.batchedUpdates.length === 0) {
-      this.logger.info(name, 'Nothing to do!')
+      this.logger.info(prefix, 'Nothing to do!')
     }
 
     // ensure that the pack files exist
     const updates = new Map<string, Package[]>()
     const pkgName = new Map<string, string>()
+
+    // rebuild graph with packages updated to point to tgz files
     const graph = new PackageGraph(iterate(this.batchedDeps).flatten(), {
       project: this.project,
     })
@@ -114,7 +141,7 @@ export default class PrepareCommand extends Command {
     // use this access check to see which ones need to be
     const accessForPackages = await pMap(updates, async (pathAndDependents) => {
       const [tgzPath] = pathAndDependents
-      this.logger.verbose(name, 'Checking access to %s', tgzPath)
+      this.logger.verbose(prefix, 'Checking access to %s', tgzPath)
       const hasAccess = await fs
         .access(tgzPath, fs.constants.R_OK)
         .then(() => true, () => false)
@@ -144,13 +171,13 @@ export default class PrepareCommand extends Command {
       if (hasProductionDep) {
         throw new ValidationError('ENOPKGFILE', 'Missing tarballs:%s', `\n${msg}`)
       }
-      this.logger.warn(name, 'Missing tarballs:%s', `\n${msg}`)
+      this.logger.warn(prefix, 'Missing tarballs:%s', `\n${msg}`)
     }
 
     // if packages need to be created at other git versions, fail
   }
 
-  resolveTransitiveDependencies(parent: PackageGraphNode, depth = 0) {
+  resolveTransitiveDependencies(parent: PackageGraphNode, graph = this.packageGraph, depth = 0) {
     // See also: @lerna/collect-updates:lib/collect-dependents
 
     // walk through dependencies of dependencies, until we have the full tree
@@ -167,7 +194,7 @@ export default class PrepareCommand extends Command {
     // package.json from that git commit, index git commits for versions, etc.
 
     for (const depName of parent.localDependencies.keys()) {
-      const node = this.packageGraph.get(depName)!
+      const node = graph.get(depName)!
 
       if (this.transDeps.has(depName)) continue
 
@@ -176,13 +203,13 @@ export default class PrepareCommand extends Command {
       next.push(node)
     }
     // traverse
-    next.forEach((node) => this.resolveTransitiveDependencies(node, depth + 1))
+    next.forEach((node) => this.resolveTransitiveDependencies(node, graph, depth + 1))
   }
 
   /**
    * Side Effect: mutates the packages in memory
    */
-  resolveLocalDependencyLinks(pkg: Package, pkgNode = this.packageGraph.get(pkg.name)) {
+  async resolveLocalDependencyLinks(pkg: Package, pkgNode = this.packageGraph.get(pkg.name)) {
     const depNode = this.packageGraph.get(pkg.name)!
 
     const dirDependencies = iterate(depNode.localDependencies)
@@ -192,7 +219,7 @@ export default class PrepareCommand extends Command {
     if (dirDependencies.size === 0) {
       return false
     }
-    this.logger.info(name, 'Resolving links for %s', pkg.name)
+    this.logger.info(prefix, 'Resolving links for %s', pkg.name)
 
     for (const [depName, resolved] of dirDependencies) {
       if (resolved.type !== 'directory') continue
@@ -200,21 +227,35 @@ export default class PrepareCommand extends Command {
       // regardless of where the version comes from, we can't publish "file:../sibling-pkg" specs
       const dep = this.packageGraph.get(depName)!.pkg
 
+      // TODO: cache
+      const ref = await describeRef({pkg: dep, matchPkg: 'name'})
+      let version = dep.version
+      if (ref.lastTagName || hasDirectoryChanged({
+        cwd: dep.location,
+        ref: ref.lastTagName
+      })) {
+        this.logger.verbose(prefix, 'creating git version for dep %s of %s', dep.name, pkg.name)
+        version = await makeGitVersion(dep, ref)
+      }
+
       // TODO: add git ref
-      const tgz = getBuildFile(this.project, dep)
+      const tgz = getBuildFile(this.project, {name: dep.name, version})
 
       // it no longer matters if we mutate the shared Package instance
-      pkg.updateLocalDependency(resolved, tgz, dep.version, '^')
+      pkg.updateLocalDependency(resolved, tgz, version, '^')
     }
 
     return true
   }
 
+  dryRun() {
+    console.log(this.batchedDeps)
+  }
   async execute() {
     // TODO: add option to package all unpacked deps
     for (const batch of this.batchedDeps) {
       // update package.json to point to package
-      this.logger.verbose(name, 'Updating %s...', batch.map((p) => p.name))
+      this.logger.verbose(prefix, 'Updating %s...', batch.map((p) => p.name))
       await pMap(batch, (pkg) => pkg.serialize())
     }
   }

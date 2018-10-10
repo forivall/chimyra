@@ -17,6 +17,7 @@ export default class DevCommand extends Command {
   initialize() {
     throw new Error('Method not implemented.')
   }
+  dryRun: undefined
   execute() {
     throw new Error('Method not implemented.')
   }

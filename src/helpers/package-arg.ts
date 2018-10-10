@@ -1,4 +1,5 @@
 import * as path from 'path'
+import * as semver from 'semver'
 
 import * as npa from 'npm-package-arg'
 
@@ -23,7 +24,8 @@ export function escapeScoped(name: string) {
 }
 
 export function getPackTarget(mani: {name: string; version: string}) {
-  return `${escapeScoped(mani.name)}-${mani.version}.tgz`
+  const v = semver.parse(mani.version)
+  return `${escapeScoped(mani.name)}-${v ? v.version : mani.version}.tgz`
 }
 
 export function fromPackTarget(

@@ -10,3 +10,9 @@ export default class ValidationError extends Error {
     log.error(prefix, message, ...rest)
   }
 }
+
+export class NoCurrentPackage extends ValidationError {
+  constructor() {
+    super('ENOTPKGDIR', 'Must be run from a package folder')
+  }
+}

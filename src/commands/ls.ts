@@ -1,5 +1,4 @@
 import * as path from 'path'
-import * as util from 'util'
 
 import chalk from 'chalk'
 import {iterate} from 'iterare'
@@ -7,11 +6,8 @@ import * as _ from 'lodash'
 import reversed from 'reversed'
 import {Argv} from 'yargs/yargs'
 
-import Command, {CommandArgs} from '../command'
+import Command, {GlobalOptions} from '../command'
 import batchPackages from '../helpers/batch-packages'
-
-// tslint:disable-next-line:no-require-imports
-import indent = require('indent-string')
 
 export const command = 'ls'
 export const describe = 'list packages'
@@ -28,16 +24,16 @@ export function builder(y: Argv) {
 
 const sortByName = _.partial(_.sortBy, _, 'name') as <T>(v: T[]) => T[]
 
-// tslint:disable-next-line:no-empty-interface
-export interface Args extends CommandArgs {
+export interface Options extends GlobalOptions {
   sort: 'topo' | 'dir'
 }
 
 export default class LsCommand extends Command {
-  _args!: Args
+  sort!: Options['sort']
+  options!: Options
   initialize() {
     const pkgs =
-      this._args.sort === 'topo'
+      this.sort === 'topo'
         ? iterate(reversed(batchPackages(this.packageGraph.rawPackageList)))
             .map(sortByName)
             .flatten()
@@ -53,11 +49,12 @@ export default class LsCommand extends Command {
       console.log(chalk`{grey ${dir}/}${name} {green ${localDepsDesc}}`)
     }
   }
+  dryRun: undefined
   execute() {
     /* empty */
   }
 }
 
-export function handler(argv: Args) {
+export function handler(argv: Options) {
   return new LsCommand(argv)
 }

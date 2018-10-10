@@ -1,27 +1,27 @@
 import * as inquirer from 'inquirer'
 import * as log from 'npmlog'
 
-export function confirm(message: string) {
+export async function confirm(message: string) {
   log.pause()
 
-  return inquirer
-    .prompt<{confirm: boolean}>([
-      {
-        type: 'expand',
-        name: 'confirm',
-        message,
-        default: 2, // default to help in order to avoid clicking straight through
-        choices: [
-          {key: 'y', name: 'Yes', value: true},
-          {key: 'n', name: 'No', value: false},
-        ],
-      },
-    ])
-    .then((answers) => {
-      log.resume()
+  const confirm = await inquirer.prompt<{
+    confirm: boolean
+  }>([
+    {
+      type: 'expand',
+      name: 'confirm',
+      message,
+      default: 2,
+      choices: [
+        {key: 'y', name: 'Yes', value: true},
+        {key: 'n', name: 'No', value: false},
+      ],
+    },
+  ])
 
-      return answers.confirm
-    })
+  log.resume()
+
+  return confirm
 }
 
 interface PromptOptions<T = inquirer.Answers> {
@@ -37,47 +37,43 @@ type ChoiceValue<C extends inquirer.ChoiceType> = {
   prompt: C extends string ? C : C extends {value: infer T} ? T : never
 }
 
-export function select<C extends inquirer.ChoiceType>(
+export async function select<C extends inquirer.ChoiceType>(
   message: string,
   {choices, filter, validate}: SelectOptions<C>,
 ) {
   log.pause()
 
-  return inquirer
-    .prompt<ChoiceValue<C>>([
-      {
-        type: 'list',
-        name: 'prompt',
-        message,
-        choices,
-        pageSize: choices.length,
-        filter,
-        validate,
-      },
-    ])
-    .then((answers) => {
-      log.resume()
+  const {prompt} = await inquirer.prompt<ChoiceValue<C>>([
+    {
+      type: 'list',
+      name: 'prompt',
+      message,
+      choices,
+      pageSize: choices.length,
+      filter,
+      validate,
+    },
+  ])
 
-      return answers.prompt
-    })
+  log.resume()
+
+  return prompt
 }
 
-export function input(message: string, {filter, validate}: PromptOptions = {}) {
+export async function input(message: string, {filter, validate}: PromptOptions = {}) {
   log.pause()
 
-  return inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'input',
-        message,
-        filter,
-        validate,
-      },
-    ])
-    .then((answers) => {
-      log.resume()
+  const {input} = await inquirer.prompt<{input: string}>([
+    {
+      type: 'input',
+      name: 'input',
+      message,
+      filter,
+      validate,
+    },
+  ])
 
-      return answers.input
-    })
+  log.resume()
+
+  return input
 }

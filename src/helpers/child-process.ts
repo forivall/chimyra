@@ -9,7 +9,7 @@ export interface ChildProcessError extends execa.ExecaError {
   pkg?: Package
 }
 
-export interface ChildProcessOptions extends execa.Options {
+export interface ChildProcessOptions extends execa.CommonOptions {
   pkg?: Package
 }
 
@@ -53,7 +53,7 @@ export function execSync(
   args: ReadonlyArray<string>,
   opts?: execa.SyncOptions,
 ) {
-  return execa.sync(command, args, opts).stdout
+  return execa.sync(command, args, opts)
 }
 
 export function spawn(

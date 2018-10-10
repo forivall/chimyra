@@ -165,7 +165,7 @@ export default class Project {
     return licensePath
   }
 
-  protected findFilesGlobOptions(customGlobOpts = {}): GlobbyOptions {
+  findFilesGlobOptions(customGlobOpts = {}): GlobbyOptions {
     const globOpts: GlobbyOptions = {
       ...customGlobOpts,
       cwd: this.rootPath,
@@ -173,7 +173,7 @@ export default class Project {
       followSymlinkedDirectories: false,
       // POSIX results always need to be normalized
       transform: fpNormalize,
-      ignore: this.config.ignore
+      ignore: this.config.ignore || []
     }
 
     if (this.packageConfigs.some((cfg) => cfg.indexOf('**') > -1)) {

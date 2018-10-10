@@ -19,6 +19,7 @@ export default class UpdateCommand extends Command {
   execute() {
     throw new Error('Method not implemented.')
   }
+  dryRun: undefined
 }
 
 export function handler(argv: Args) {

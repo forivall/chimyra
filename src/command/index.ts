@@ -24,6 +24,7 @@ export interface CommandArgs {
   ci?: boolean
   progress?: boolean
   loglevel?: npmlog.LogLevel
+  dryRun?: boolean
 }
 
 export interface CommandEnv {
@@ -34,7 +35,7 @@ export interface CommandEnv {
 
 export interface GlobalOptions extends CommandArgs {
   concurrency?: number | string
-  sort?: boolean
+  sort?: string
   maxBuffer?: number
   since?: string
 }
@@ -72,7 +73,7 @@ export default abstract class Command {
   protected _args: CommandArgs
   options: GlobalOptions = {}
   concurrency = DEFAULT_CONCURRENCY
-  toposort = true
+  sort: string | null = null
   execOpts: execa.Options = {}
   logger!: npmlog.LogTrackerGroup
   packageGraph!: PackageGraph
@@ -206,7 +207,7 @@ export default abstract class Command {
     if (concurrency && concurrency >= 1) this.concurrency = concurrency
 
     const {sort, maxBuffer} = this.options
-    if (sort !== undefined) this.toposort = sort
+    if (sort !== undefined) this.sort = sort
 
     this.execOpts = {
       cwd: this.project.rootPath,
@@ -299,6 +300,11 @@ export default abstract class Command {
   async runCommand() {
     const proceed = (await this.initialize()) as boolean | undefined
     if (proceed !== false) {
+      if (this.options.dryRun) {
+        if (typeof this.dryRun === 'function') {
+          return this.dryRun()
+        }
+      }
       return this.execute()
     }
   }
@@ -306,4 +312,6 @@ export default abstract class Command {
   abstract initialize(): void | boolean | Promise<void | boolean>
 
   abstract execute(): any | Promise<any>
+
+  abstract dryRun?(): any | Promise<any>
 }
