@@ -304,6 +304,7 @@ export default abstract class Command {
         if (typeof this.dryRun === 'function') {
           return this.dryRun()
         }
+        return
       }
       return this.execute()
     }
