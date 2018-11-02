@@ -18,10 +18,10 @@ import Package from '../model/package'
 import hasDirectoryChanged from '../helpers/git/has-directory-changed'
 import * as semver from 'semver'
 import {promptVersion} from './version'
-import {name} from '../constants'
 
 export const command = 'pack'
 export const describe = 'Run `npm pack`, on current package with preprocessing & reset'
+const prefix = 'PACK'
 
 export function builder(y: Argv) {
   return y.options({
@@ -37,8 +37,6 @@ export function builder(y: Argv) {
 export interface Options extends GlobalOptions {
   force?: boolean
 }
-
-const prefix = 'PACK'
 
 export type FilterKeys<T, U> = {
   [K in keyof T]: NonNullable<T[K]> extends U ? K : never
@@ -106,7 +104,7 @@ export default class PackCommand extends Command {
     // update version based on git sha, TODO: add option to turn off
     if (pkg.version !== ref.lastVersion || ref.refCount !== 0) {
       const gitVersion = await makeGitVersion(pkg, ref)
-      this.logger.info(name, 'Using non-authoritative version %s', gitVersion)
+      this.logger.info(prefix, 'Using non-authoritative version %s', gitVersion)
       pkg.version = gitVersion
     }
 
@@ -118,8 +116,7 @@ export default class PackCommand extends Command {
         homedir.minimize(buildFile),
       )
     }
-    this.logger.info(name, 'Target: %s', buildFile)
-    if (!!true) return
+    this.logger.info(prefix, 'Target: %s', buildFile)
 
     // check if any non-bundled dependencies are defined as links, fail if they are
     // and instruct the user to run `prepare`

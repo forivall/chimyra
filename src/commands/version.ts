@@ -7,7 +7,6 @@ import writeJsonFile from 'write-json-file'
 import {Argv} from 'yargs/yargs'
 
 import Command, {GlobalOptions} from '../command'
-import {name} from '../constants'
 import {NoCurrentPackage} from '../errors/validation'
 import gitAdd from '../helpers/git/add'
 import gitCommit from '../helpers/git/commit'
@@ -19,6 +18,7 @@ import {roArray, never} from '../helpers/types';
 
 export const command = 'version [bump]'
 export const describe = 'Update the version of the current package'
+const prefix = 'VERSION'
 
 export function builder(y: Argv) {
   return y.options({
@@ -80,7 +80,7 @@ export default class VersionCommand extends Command {
     const newVersion = await this.getNewVersion()
     this.tagOnly = this.currentPackage.version === newVersion
     this.currentPackage.version = newVersion
-    this.logger.info(name, 'Setting new version to %s', this.currentPackage.version)
+    this.logger.info(prefix, 'Setting new version to %s', this.currentPackage.version)
   }
   async getNewVersion() {
     const {preid, bump} = this.options
@@ -121,10 +121,10 @@ export default class VersionCommand extends Command {
       const lockJson = await fs.readJson(filePath)
       lockJson.version = version
       await writeJsonFile(filePath, lockJson, {detectIndent: true})
-      this.logger.info(name, 'Update %s', filePathLocal)
+      this.logger.info(prefix, 'Update %s', filePathLocal)
       this.changedFiles.push(filePath)
     } catch {
-      this.logger.info(name, 'No Change %s', filePathLocal)
+      this.logger.info(prefix, 'No Change %s', filePathLocal)
     }
     // TODO: show a confirmation prompt
   }
@@ -134,10 +134,10 @@ export default class VersionCommand extends Command {
     // TODO: run package lifecycle, like preversion, etc.
     if (!this.tagOnly) {
       const version = this.currentPackage.version
-      this.logger.info(name, 'Writing version %s to package files', version)
+      this.logger.info(prefix, 'Writing version %s to package files', version)
       await this.currentPackage.serialize()
       this.changedFiles.push(this.currentPackage.manifestLocation)
-      this.logger.info(name, 'Updated package.json')
+      this.logger.info(prefix, 'Updated package.json')
 
       await this.updateVersionInFile(this.currentPackage.lockfileLocation, version)
       await this.updateVersionInFile(this.currentPackage.shrinkwrapLocation, version)
@@ -147,11 +147,11 @@ export default class VersionCommand extends Command {
         `version(${this.currentPackage.name}): v${this.currentPackage.version}`,
         this.options,
       )
-      this.logger.info(name, 'Created git commit %O', commitResult)
+      this.logger.info(prefix, 'Created git commit %O', commitResult)
     }
 
     const tagResult = await gitTag(this.currentPackage, this.options)
-    this.logger.info(name, 'Created git tag %O', tagResult)
+    this.logger.info(prefix, 'Created git tag %O', tagResult)
   }
 }
 
