@@ -39,14 +39,14 @@ export default class LsCommand extends Command {
             .flatten()
         : _.sortBy([...this.packageGraph.rawPackageList], 'location')
     for (const pkg of pkgs) {
-      const {name} = pkg
+      const {name, version} = pkg
       const dir = path.relative('.', path.dirname(pkg.location))
       const g = this.packageGraph.get(name)!
       const localDepsDesc = iterate(g.localDependencies.keys())
         .filter((depName) => Boolean((pkg.dependencies || {})[depName]))
         .join(' ')
 
-      console.log(chalk`{grey ${dir}/}${name} {green ${localDepsDesc}}`)
+      console.log(chalk`{grey ${dir}/}${name} {yellow ${version}} {green ${localDepsDesc}}`)
     }
   }
   dryRun: undefined
