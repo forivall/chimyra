@@ -230,11 +230,12 @@ export default class PrepareCommand extends Command {
       // TODO: cache
       const ref = await describeRef({pkg: dep, matchPkg: 'name'})
       let version = dep.version
-      if (ref.lastTagName || hasDirectoryChanged({
+      const dirChanged = !ref.lastTagName || await hasDirectoryChanged({
         cwd: dep.location,
         ref: ref.lastTagName
-      })) {
-        this.logger.verbose(prefix, 'creating git version for dep %s of %s', dep.name, pkg.name)
+      })
+      if (dirChanged) {
+        this.logger.verbose(prefix, 'creating git version for dep %s of %s', dep.name, pkg.name, ref, dirChanged)
         version = await makeGitVersion(dep, ref)
       }
 

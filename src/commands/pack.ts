@@ -95,13 +95,27 @@ export default class PackCommand extends SetAbsPathCommand {
 
     const ref = await describeRef({pkg, matchPkg: 'name'})
 
-    if (ref.isDirty && await hasDirectoryChanged({cwd: pkg.location})) {
+    if (ref.isDirty && (await hasDirectoryChanged({cwd: pkg.location}))) {
       // TODO: allow dirty with flag, need to count how many already built dirty versions exist
       throw new ValidationError('EDIRTY', 'Current package directory cannot be dirty')
     }
 
     // update version based on git sha, TODO: add option to turn off
-    if (pkg.version !== ref.lastVersion || ref.refCount !== 0) {
+    this.logger.verbose(
+      prefix,
+      'Checking version...',
+      pkg.version,
+      ref,
+      pkg.version === ref.lastVersion,
+    )
+    if (
+      pkg.version !== ref.lastVersion ||
+      (ref.refCount !== 0 &&
+        (await hasDirectoryChanged({
+          ref: ref.lastTagName,
+        })))
+    ) {
+      this.logger.verbose(prefix, 'Making git version...')
       const gitVersion = await makeGitVersion(pkg, ref)
       this.logger.info(prefix, 'Using non-authoritative version %s', gitVersion)
       pkg.version = gitVersion

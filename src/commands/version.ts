@@ -100,18 +100,21 @@ export default class VersionCommand extends Command {
 
     const pkg = this.currentPackage
     if (increment && isVersionBump(increment)) {
-      newVersion = semver.inc(pkg.version, increment, preid || (isPrerelease && existingPreId))
+      newVersion = semver.inc(
+        pkg.version,
+        increment,
+        preid || (isPrerelease && existingPreId),
+      )
       if (newVersion) {
         return newVersion
-      } else {
-        this.logger.info(name, 'Could not generate new version')
       }
+      this.logger.info(prefix, 'Could not generate new version')
     }
 
     const newPre = preid || existingPreId || 'alpha'
 
     return promptVersion(pkg.version, pkg.name, {
-      prereleaseId: newPre
+      prereleaseId: newPre,
     })
   }
 
@@ -159,7 +162,15 @@ export function handler(argv: Options) {
   return new VersionCommand(argv)
 }
 
-const releaseTypes = roArray<string>()(["major", "premajor", "minor", "preminor", "patch", "prepatch", "prerelease"])
+const releaseTypes = roArray<string>()([
+  'major',
+  'premajor',
+  'minor',
+  'preminor',
+  'patch',
+  'prepatch',
+  'prerelease',
+])
 export function isVersionBump(increment: string): increment is semver.ReleaseType {
   return (releaseTypes as string[]).indexOf(increment) >= 0
 }
@@ -182,36 +193,64 @@ export interface PromptVersionOptions {
   message?: string
   prereleaseId?: string
 }
+
+interface BumpChoice {
+  value: string | null
+  name: string
+  bump: VersionBump
+}
+interface BumpChoiceStrict extends BumpChoice {
+  value: string
+}
 /**
  * A predicate that prompts user to select/construct a version bump.
  * It can be run per-package (independent) or globally (fixed).
- *
- * @property currentVersion
- * @property name (Only used in independent mode)
- * @property prereleaseId
  */
-export async function promptVersion(currentVersion: string, name: string, options: PromptVersionOptions = {}) {
+export async function promptVersion(
+  currentVersion: string,
+  pkgName: string,
+  options: PromptVersionOptions = {},
+) {
   const prereleaseId = options.prereleaseId || 'pre'
-  const versionChoices = (options.bumps || allBumps).map((bump) => {
+  const bumpOptions = (options.bumps || allBumps)
+  const versionChoices = bumpOptions.map((bump): BumpChoice => {
     switch (bump) {
-      case 'PRERELEASE': return {value: 'PRERELEASE', name: 'Custom Prerelease'}
-      case 'CUSTOM': return {value: 'CUSTOM', name: 'Custom Version'}
-      case 'CURRENT': return {value: 'CURRENT', name: 'Tag Only'}
+      case 'PRERELEASE':
+        return {bump, value: 'PRERELEASE', name: 'Custom Prerelease'}
+      case 'CUSTOM':
+        return {bump, value: 'CUSTOM', name: 'Custom Version'}
+      case 'CURRENT':
+        return {bump, value: 'CURRENT', name: 'Tag Only'}
       default:
-      const name = _.startCase(bump)
-      if (bump.startsWith('pre')) {
-        return {value: semver.inc(currentVersion, bump, prereleaseId), name}
-      }
-      return {value: semver.inc(currentVersion, bump), name}
+        const value = semver.inc(
+          currentVersion,
+          bump,
+          bump.startsWith('pre') ? prereleaseId : undefined,
+        )
+        const name = `${_.startCase(bump)} (${value})`
+        return {bump, value, name}
     }
   })
 
+  if (bumpOptions.indexOf('prerelease') >= 0) {
+    const preIndex = versionChoices.findIndex((b) => b.bump === 'prerelease')
+    if (preIndex >= 0) {
+      const preValue = versionChoices[preIndex]
+      const prepatchValue = versionChoices.find((b) => b.bump === 'prepatch')
+      if (prepatchValue && prepatchValue.value === preValue.value) {
+        versionChoices.splice(preIndex, 1)
+      }
+    }
+  }
+
   const message = `${options.message || 'Select a new version'} ${
-    name ? `for ${name} ` : ''
+    pkgName ? `for ${pkgName} ` : ''
   }(currently ${currentVersion})`
 
   const choice = await PromptUtilities.select(message, {
-    choices: versionChoices.filter((choice): choice is {value: string; name: string} => choice.value != null),
+    choices: versionChoices.filter(
+      (c): c is BumpChoiceStrict => c.value != null,
+    ),
   })
   if (choice === 'CUSTOM') {
     return PromptUtilities.input('Enter a custom version', {
