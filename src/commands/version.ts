@@ -14,7 +14,7 @@ import gitTag from '../helpers/git/create-tag'
 import * as PromptUtilities from '../helpers/prompt'
 import PackageGraphNode from '../model/graph-node'
 import Package from '../model/package'
-import {roArray, never} from '../helpers/types';
+import {roArray} from '../helpers/types'
 
 export const command = 'version [bump]'
 export const describe = 'Update the version of the current package'

@@ -1,22 +1,21 @@
 import * as path from 'path'
 
-import {Dependencies} from '@npm/types'
 import * as fs from 'fs-extra'
 import {iterate} from 'iterare'
-import * as npa from 'npm-package-arg'
+import * as semver from 'semver'
 import {Argv} from 'yargs/yargs'
 
-import Command, {GlobalOptions} from '../command'
+import {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import {getBuildDir, getBuildFile} from '../helpers/build-paths'
 import * as childProcess from '../helpers/child-process'
 import describeRef, {GitRef} from '../helpers/git/describe-ref'
+import hasDirectoryChanged from '../helpers/git/has-directory-changed'
 import * as homedir from '../helpers/homedir'
 import isSubdir from '../helpers/is-subdir'
 import getExecOpts from '../helpers/npm-exec-opts'
 import Package from '../model/package'
-import hasDirectoryChanged from '../helpers/git/has-directory-changed'
-import * as semver from 'semver'
+import SetAbsPathCommand from './set-absolute-path'
 import {promptVersion} from './version'
 
 export const command = 'pack'
@@ -81,7 +80,7 @@ export async function makeGitVersion(pkg: Package, ref: GitRef) {
   return formatVersionWithBuild(version)
 }
 
-export default class PackCommand extends Command {
+export default class PackCommand extends SetAbsPathCommand {
   // Override to change ? to !
   currentPackage!: Package
   originalPackage!: Package
@@ -140,46 +139,6 @@ export default class PackCommand extends Command {
     this.setAbsolutePath('devDependencies')
   }
 
-  setAbsolutePath(
-    depsArg: Dependencies | FilterKeys<Package, Dependencies> | undefined,
-  ) {
-    const deps = typeof depsArg === 'string' ? this.currentPackage[depsArg] : depsArg
-    if (!deps) {
-      if (typeof depsArg === 'string') {
-        this.logger.silly(prefix, 'Package has no %s', depsArg)
-      }
-      return deps
-    }
-
-    const where = this.currentPackage.location
-    for (const depName of Object.keys(deps)) {
-      const resolved = npa.resolve(depName, deps[depName], where)
-      this.logger.silly(prefix, depName, resolved)
-
-      if (resolved.type === 'file') {
-        this.logger.info(prefix, 'Updating %s dependency to absolute path', depName)
-
-        let tgzPath = resolved.fetchSpec
-        if (!tgzPath) {
-          throw new ValidationError(
-            prefix,
-            'Could not resolve tarball location for %s',
-            depName,
-          )
-        }
-
-        // TODO: make this transform optional
-        tgzPath = homedir.compact(tgzPath)
-
-        deps[depName] = `file:${tgzPath}`
-      }
-
-      // TODO: check if resolved is a link that points outside of the directory,
-      // and fail if so
-    }
-    return deps
-  }
-
   async dryRun() {
     const curPkg = this.currentPackage
     const target = curPkg.packTarget
@@ -216,13 +175,7 @@ export default class PackCommand extends Command {
     this.logger.verbose(prefix, 'mkdirp %s', buildDir)
     await fs.mkdirp(buildDir)
 
-    const maniBackup = `${pkg.manifestLocation}.orig`
-
-    this.logger.verbose(prefix, 'mv %s %s', pkg.manifestLocation, maniBackup)
-    await fs.copy(pkg.manifestLocation, maniBackup)
-
-    this.logger.verbose(prefix, 'update package.json')
-    await pkg.serialize()
+    const maniBackup = await super.execute()
 
     this.logger.verbose(prefix, 'npm pack')
     const packReturn = await childProcess.spawnStreaming(
