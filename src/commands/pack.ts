@@ -6,7 +6,7 @@ import {iterate} from 'iterare'
 import * as npa from 'npm-package-arg'
 import {Argv} from 'yargs/yargs'
 
-import Command, {CommandArgs, CommandContext} from '../command'
+import Command, {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import {getBuildDir, getBuildFile} from '../helpers/build-paths'
 import * as childProcess from '../helpers/child-process'
@@ -34,7 +34,7 @@ export function builder(y: Argv) {
 }
 
 // tslint:disable-next-line:no-empty-interface
-export interface Args extends CommandArgs {
+export interface Options extends GlobalOptions {
   force?: boolean
 }
 
@@ -88,13 +88,7 @@ export default class PackCommand extends Command {
   currentPackage!: Package
   originalPackage!: Package
 
-  force: boolean
-
-  constructor(args: Args, context?: CommandContext) {
-    super(args, context)
-
-    this.force = args.force !== false
-  }
+  options!: Options
 
   async initialize() {
     if (!this.currentPackage || !this.currentPackageNode) {
@@ -117,7 +111,7 @@ export default class PackCommand extends Command {
     }
 
     const buildFile = getBuildFile(this.project, pkg)
-    if (await exists(buildFile)) {
+    if (!this.options.force && (await exists(buildFile))) {
       throw new ValidationError(
         'EPKGBUILT',
         'Package %s already exists. Use --force to overwrite.',
@@ -217,7 +211,7 @@ export default class PackCommand extends Command {
     const target = pkg.packTarget
     const targetFile = path.join(buildDir, target)
 
-    if (!this.force && (await exists(targetFile))) {
+    if (!this.options.force && (await exists(targetFile))) {
       this.logger.info(prefix, 'Package exists. Not overwriting')
       return targetFile
     }
@@ -265,6 +259,6 @@ export default class PackCommand extends Command {
   }
 }
 
-export function handler(argv: Args) {
+export function handler(argv: Options) {
   return new PackCommand(argv)
 }
