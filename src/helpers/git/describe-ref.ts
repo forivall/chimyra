@@ -36,7 +36,7 @@ function matchPackage(on?: DescribeRefPkgMatch, pkg?: Package): string | undefin
   if (!on || !pkg) return
 
   switch (on) {
-    case 'name': return `${pkg.name}-*`
+    case 'name': return `${pkg.name}-v[0-9]*`
     // This is the lerna format
     case 'name-@': return `${pkg.name}@*`
 
