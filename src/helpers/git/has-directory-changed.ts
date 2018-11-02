@@ -22,6 +22,7 @@ function getArgs(options: IsDirectoryDirtyOptions = {}) {
     '--', options.dir || '.',
   ]
 
+  // tslint:disable-next-line:no-var-before-return
   return args
 }
 

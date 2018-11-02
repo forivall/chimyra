@@ -58,6 +58,7 @@ export default class PackageGraphNode {
         throw new ValidationError(
           'EINVALIDVERSION',
           'File %s does not satisfy version %s',
+          file.name, chi.fetchSpec
         )
       }
       return semver.satisfies(this.version, chi.fetchSpec)
