@@ -52,13 +52,17 @@ export default class PackageGraphNode {
    * Determine if the Node satisfies a resolved semver range.
    * @see https://github.com/npm/npm-package-arg#result-object
    */
-  satisfies({gitCommittish, gitRange, fetchSpec, file, chi}: NpaResultExt) {
+  satisfies(
+    {gitCommittish, gitRange, fetchSpec, file, chi, name}: NpaResultExt,
+    parent?: Partial<PackageGraphNode>
+  ) {
     if (file && chi && chi.fetchSpec) {
-      if (!semver.satisfies(file.version, chi.fetchSpec)) {
+      const fileVersion = semver.coerce(file.version)
+      if (!fileVersion || !semver.satisfies(fileVersion, chi.fetchSpec)) {
         throw new ValidationError(
           'EINVALIDVERSION',
-          'File %s does not satisfy version %s',
-          file.name, chi.fetchSpec
+          'File %s does not satisfy version %s in %s',
+          file.name, chi.fetchSpec, (parent || {}).name || '<unknown>'
         )
       }
       return semver.satisfies(this.version, chi.fetchSpec)

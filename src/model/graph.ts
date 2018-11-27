@@ -100,7 +100,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
         if (
           forceLocal ||
           resolved.fetchSpec === depNode.location ||
-          depNode.satisfies(resolved)
+          depNode.satisfies(resolved, currentNode)
         ) {
           // a local file: specifier OR a matching semver
           currentNode.localDependencies.set(depName, resolved)
