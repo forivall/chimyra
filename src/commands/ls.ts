@@ -19,6 +19,9 @@ export function builder(y: Argv) {
       default: 'topo',
       choices: ['topo', 'dir'],
     },
+    dev: {
+      desc: 'include dev dependencies'
+    }
   })
 }
 
@@ -26,6 +29,7 @@ const sortByName = _.partial(_.sortBy, _, 'name') as <T>(v: T[]) => T[]
 
 export interface Options extends GlobalOptions {
   sort: 'topo' | 'dir'
+  dev: boolean
 }
 
 export default class LsCommand extends Command {
@@ -42,11 +46,11 @@ export default class LsCommand extends Command {
       const {name, version} = pkg
       const dir = path.relative('.', path.dirname(pkg.location))
       const g = this.packageGraph.get(name)!
-      const localDepsDesc = iterate(g.localDependencies.keys())
-        .filter((depName) => Boolean((pkg.dependencies || {})[depName]))
-        .join(' ')
-
-      console.log(chalk`{grey ${dir}/}${name} {yellow ${version}} {green ${localDepsDesc}}`)
+      let localDepsNames = iterate(g.localDependencies.keys())
+      if (!this.options.dev) {
+        localDepsNames = localDepsNames.filter((depName) => Boolean((pkg.dependencies || {})[depName]))
+      }
+      console.log(chalk`{grey ${dir}/}${name} {yellow ${version}} {green ${localDepsNames.join(' ')}}`)
     }
   }
   dryRun: undefined

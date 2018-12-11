@@ -67,7 +67,10 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
 
     this.forEach((currentNode, currentName) => {
       const graphDependencies: Dependencies = {
-        ...(graphType === 'dependencies' ? {} : currentNode.pkg.devDependencies),
+        ...(graphType === 'dependencies' ? {} : {
+          ...currentNode.pkg.chimerDependencies,
+          ...currentNode.pkg.devDependencies,
+        }),
         ...currentNode.pkg.optionalDependencies,
         ...currentNode.pkg.dependencies,
       }
@@ -91,7 +94,8 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
 
         log.silly(
           'PACKAGE_GRAPH',
-          'Checking if %s@%s satisfies %j',
+          'In %s: Checking if %s@%s satisfies %j',
+          currentNode.name,
           depName,
           depNode.version,
           resolved,
@@ -102,6 +106,12 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
           resolved.fetchSpec === depNode.location ||
           depNode.satisfies(resolved, currentNode)
         ) {
+          log.silly(
+            'PACKAGE_GRAPH',
+            '%s depends on %s',
+            currentNode.name,
+            depName,
+          )
           // a local file: specifier OR a matching semver
           currentNode.localDependencies.set(depName, resolved)
           depNode.localDependents.set(currentName, currentNode)
