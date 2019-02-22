@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    // "composite": true, // breaks tslint
+    "composite": true, // breaks tslint
     "outDir": "../lib"
   },
   "include": [

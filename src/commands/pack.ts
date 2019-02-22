@@ -1,5 +1,6 @@
 import * as path from 'path'
 
+import {ExecaReturns} from 'execa'
 import * as fs from 'fs-extra'
 import {iterate} from 'iterare'
 import * as semver from 'semver'
@@ -163,7 +164,7 @@ export default class PackCommand extends SetAbsPathCommand {
       getExecOpts(curPkg),
       prefix,
     )
-    const dryTgz = dryPackReturn.stdout
+    const dryTgz = parsePackResult(dryPackReturn)
     if (dryTgz !== target) {
       this.logger.warn(
         prefix,
@@ -192,6 +193,8 @@ export default class PackCommand extends SetAbsPathCommand {
     const maniBackup = await super.execute()
 
     this.logger.verbose(prefix, 'npm pack')
+    // TODO: use @pika/pack - and/or allow plugins for packing
+    // https://www.pikapkg.com/blog/introducing-pika-pack/
     const packReturn = await childProcess.spawnStreaming(
       'npm',
       ['pack'],
@@ -199,7 +202,7 @@ export default class PackCommand extends SetAbsPathCommand {
       prefix,
     )
 
-    const tgz = packReturn.stdout
+    const tgz = parsePackResult(packReturn)
 
     if (tgz !== target) {
       this.logger.warn(
@@ -221,6 +224,13 @@ export default class PackCommand extends SetAbsPathCommand {
 
     return buildFile
   }
+}
+
+function parsePackResult(packReturn: ExecaReturns) {
+  const {stdout} = packReturn
+  const match = /[^\r\n]+$/.exec(stdout)
+  if (match) return match[0]
+  return packReturn.stdout
 }
 
 export function handler(argv: Options) {

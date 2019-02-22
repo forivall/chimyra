@@ -34,6 +34,7 @@ _Note: `chi` and `chimer` are interchangeable_
 `chi dev` - bootstrap local packages by linking them together, and install foreign packages, for development.
 
 `chi prepare` - when run inside of an app folder, prepare an app for deployment, by packaging the dependencies at the defined version. Can be used as `prepare` in `package.json` `scripts`.
+  * TODO: also update the `package-lock.json` or `npm-shrinkwrap.json` to manually dedupe our local packages, and then run `npm i` again which will remove the duplicate once it's been removed from the shrinkwrap or lock. Or just manually remove the folder, as once the lock/shrinkwrap has been updated, it won't try to add it back until deps change in some other way.
 
 `chi update` - Interactively update dependency versions. Automatically runs `chi prepare` after dependencies are up to date.
 
