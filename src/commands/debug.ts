@@ -22,7 +22,6 @@ export function builder(y: Argv) {
 const formatIndent = (o: any) =>
   indent(util.inspect(o, {colors: true, compact: false}), 4)
 
-// tslint:disable-next-line:no-empty-interface
 export interface Options extends GlobalOptions {
   currentOnly?: boolean
 }
