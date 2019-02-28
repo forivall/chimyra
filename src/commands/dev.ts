@@ -33,6 +33,15 @@ interface Action {
   to: string
   opts?: Partial<LinkOptions>
 }
+/**
+ * `flat()` using reduce.
+ *
+ * Usage:
+ * ```ts
+ * [[1, 2, 3], [4, 5, 6]].reduce(redFlat) => [1, 2, 3, 4, 5, 6]
+ * ```
+ */
+const redFlat = <T>(l: ReadonlyArray<T>, r: ReadonlyArray<T>) => l.concat(r)
 export default class DevCommand extends Command {
   links!: string[]
   options!: Options
@@ -47,35 +56,30 @@ export default class DevCommand extends Command {
 
     const ptP = readPackageTree(pkg.location)
     const targetRoots = this.links.map((n) => this.packageGraph.get(n)!)
-    this.targets = (await Promise.all(
+    this.targets =
+    (await Promise.all(
+      // link local dependency's dependencies in node_modules to the current package's dependency
       targetRoots.map(async (d) => {
         const t = await readPackageTree(d.location)
         const pt = await ptP
         const opts = {prefix: d.location}
         return t.children.map((n): Partial<Action> => {
-          const match = pt.children.find((o) => o.name === n.name && o.package.version === n.package.version)
-          return {
-            opts,
-            to: n.path,
-            from: match && match.path,
+          const targetMatch = targetRoots.find((o) => o !== d && o.name === n.name && o.version === n.package.version)
+          if (targetMatch) {
+            return {opts, to: n.path, from: targetMatch.location}
           }
+          const match = pt.children.find((o) => o.name === n.name && o.package.version === n.package.version)
+          return {opts, to: n.path, from: match && (match.realpath || match.path)}
         })
         .filter((pair): pair is Action => Boolean(pair.from))
-
-        // return Promise.all(t.children.map(async (c) => {
-
-        //   c.path
-        // }))
-    }))).reduce((l, r) => l.concat(r))
-    .concat(
-      await ptP.then((pt) => targetRoots.map((d): Partial<Action> => {
+      })
+      // link local dependency into current package's node_modules
+      .concat(ptP.then((pt) => targetRoots.map((d): Partial<Action> => {
         const match = pt.children.find((o) => o.name === d.name && o.package.version === d.version)
-        return {
-          to: match && match.path,
-          from: d.location,
-        }
-      }).filter((pair): pair is Action => Boolean(pair.to)))
-    )
+        return {to: match && match.path, from: d.location}
+      }).filter((pair): pair is Action => Boolean(pair.to))))
+    )).reduce(redFlat)
+
 
     // TODO: actually build up the full dependency tree
     // console.log(pkg.localDependencies)
