@@ -6,6 +6,7 @@ import {Argv} from 'yargs/yargs'
 
 import Command, {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
+import {satisfies} from 'semver';
 
 const linkIfExists = (from: string, to: string, opts: LinkOptions) => new Promise<void>(
   (resolve, reject) => linkIfExists_(from, to, opts, (err) => err ? reject(err) : resolve())
@@ -75,7 +76,9 @@ export default class DevCommand extends Command {
       })
       // link local dependency into current package's node_modules
       .concat(ptP.then((pt) => targetRoots.map((d): Partial<Action> => {
-        const match = pt.children.find((o) => o.name === d.name && o.package.version === d.version)
+        const candidates = pt.children.filter((o) => o.name === d.name)
+        this.logger.info('check', 'matches? %s, %O', d.version, candidates.map((o) => o.package.version))
+        const match = candidates.find((o) => satisfies(o.package.version, `^${d.version}`))
         return {to: match && match.path, from: d.location}
       }).filter((pair): pair is Action => Boolean(pair.to))))
     )).reduce(redFlat)
