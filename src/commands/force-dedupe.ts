@@ -7,7 +7,7 @@ import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import {confirm} from '../helpers/prompt'
 import {Argument2} from '../helpers/types'
 
-export const command = 'force-dedupe [name]'
+export const command = 'force-dedupe [names..]'
 export const describe = 'list packages'
 
 import trash = require('trash')
@@ -22,7 +22,7 @@ type GlobbyOptions = NonNullable<Argument2<typeof globby>>
 
 // tslint:disable-next-line:no-empty-interface
 export interface Options extends GlobalOptions {
-  name?: string
+  names?: string[]
 }
 
 const NOT_TYPES = 'You are deduping a non-@types package. Are you sure you want to continue?'
@@ -34,8 +34,8 @@ export default class ForceDedupeCommand extends Command {
     if (!this.currentPackage || !this.currentPackageNode) {
       throw new NoCurrentPackage()
     }
-    const name = this.options.name || '@types/node'
-    if (!name.startsWith('@types/') && !(await confirm(NOT_TYPES))) {
+    const packages = (this.options.names || []).length > 0 ? this.options.names! : ['@types/node']
+    if (packages.some((name) => !name.startsWith('@types/')) && !(await confirm(NOT_TYPES))) {
       return
     }
     const globOptions: GlobbyOptions = {
@@ -48,22 +48,26 @@ export default class ForceDedupeCommand extends Command {
       // globstar: true
       // expandDirectories: true
     } || this.project.findFilesGlobOptions()
-    const paths = await globby(path.join('node_modules', '**', name), globOptions)
-    const root = path.join('node_modules', name)
-    const rootIndex = paths.findIndex((p) => p === root)
-    this.logger.verbose(prefix, 'Found %j', paths)
-    if (rootIndex < 0) {
-      throw new ValidationError('EDEDUPENOROOT', 'Dependency not found')
-    }
 
-    paths.splice(rootIndex, 1)
-    this.trashPaths = paths
+    this.trashPaths = await packages.reduce<Promise<string[]>>(async (trashPaths, name) => {
+      this.logger.info('force-dedupe', `finding children of ${name}`)
+      const paths = await globby(path.join('node_modules', '**', name), globOptions)
+      const root = path.join('node_modules', name)
+      const rootIndex = paths.findIndex((p) => p === root)
+      this.logger.verbose(prefix, 'Found %j', paths)
+      if (rootIndex < 0) {
+        throw new ValidationError('EDEDUPENOROOT', 'Dependency not found')
+      }
+
+      paths.splice(rootIndex, 1)
+      return (await trashPaths).concat(paths)
+    }, Promise.resolve([]))
   }
   dryRun: undefined
-  execute() {
-    if (this.trashPaths) {
+  async execute() {
+    if (this.trashPaths && this.trashPaths.length > 0) {
       this.logger.info(prefix, 'Trashing paths:\n%s', this.trashPaths.join('\n'))
-      trash(this.trashPaths)
+      await trash(this.trashPaths)
     }
   }
 }
