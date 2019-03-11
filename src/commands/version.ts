@@ -207,7 +207,7 @@ interface BumpChoiceStrict extends BumpChoice {
  * It can be run per-package (independent) or globally (fixed).
  */
 export async function promptVersion(
-  currentVersion: string,
+  currentVersion: string | semver.SemVer,
   pkgName: string,
   options: PromptVersionOptions = {},
 ) {
@@ -269,7 +269,12 @@ export async function promptVersion(
     })
   }
 
-  if (choice === 'CURRENT') return currentVersion
+  if (choice === 'CURRENT') return ensureString(currentVersion)
 
   return choice
+}
+
+function ensureString(ver: string | semver.SemVer): string {
+  if (typeof ver === 'string') return ver
+  return ver.raw
 }

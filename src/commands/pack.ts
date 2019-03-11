@@ -5,6 +5,7 @@ import * as fs from 'fs-extra'
 import {iterate} from 'iterare'
 import * as semver from 'semver'
 import {Argv} from 'yargs/yargs'
+import {cloneDeep} from 'lodash'
 
 import {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
@@ -30,12 +31,18 @@ export function builder(y: Argv) {
       default: false,
       description: 'Overwrite package file, even if it already exists',
     },
+    dirty: {
+      type: 'boolean',
+      default: false,
+      description: 'allow packaging when directory is dirty'
+    }
   })
 }
 
 // tslint:disable-next-line:no-empty-interface
 export interface Options extends GlobalOptions {
   force?: boolean
+  dirty?: boolean
 }
 
 export type FilterKeys<T, U> = {
@@ -62,9 +69,14 @@ export function formatVersionWithBuild(v: semver.SemVer): string {
   return out
 }
 
-export async function makeGitVersion(pkg: Package, ref: GitRef) {
-  let version = semver.parse(pkg.version)
-  if (!version) throw new Error('Invalid current version: ' + pkg.version)
+export async function makeGitSemver(pkg: {name: string, version: string | semver.SemVer}, ref: GitRef) {
+  let version
+  if (typeof pkg.version === 'string') {
+    version = semver.parse(pkg.version)
+    if (!version) throw new Error('Invalid current version: ' + pkg.version)
+  } else {
+    version = cloneDeep(pkg.version)
+  }
 
   if (version.prerelease.length === 0) {
     const versionBase = await promptVersion(pkg.version, pkg.name, {
@@ -72,13 +84,16 @@ export async function makeGitVersion(pkg: Package, ref: GitRef) {
       message: 'Select version base for prerelease package:',
     })
     version = semver.parse(versionBase)
-    if (!version) throw new Error('Invalid prompted version' + version)
+    if (!version) throw new Error(`Invalid prompted version ${version}`)
   }
 
   version.prerelease.push(String((ref.refCount || 1) - 1))
   version.build.push(ref.sha)
 
-  return formatVersionWithBuild(version)
+  return version
+}
+export async function makeGitVersion(pkg: Package, ref: GitRef) {
+  return formatVersionWithBuild(await makeGitSemver(pkg, ref))
 }
 
 export default class PackCommand extends SetAbsPathCommand {
@@ -96,8 +111,8 @@ export default class PackCommand extends SetAbsPathCommand {
 
     const ref = await describeRef({pkg, matchPkg: 'name'})
 
-    if (ref.isDirty && (await hasDirectoryChanged({cwd: pkg.location}))) {
-      // TODO: allow dirty with flag, need to count how many already built dirty versions exist
+    const isDirty = ref.isDirty && (await hasDirectoryChanged({cwd: pkg.location}))
+    if (isDirty && !this.options.dirty) {
       throw new ValidationError('EDIRTY', 'Current package directory cannot be dirty')
     }
 
@@ -109,6 +124,10 @@ export default class PackCommand extends SetAbsPathCommand {
       ref,
       pkg.version === ref.lastVersion,
     )
+    const {name} = pkg
+    let version = semver.parse(pkg.version)
+    if (!version) throw new Error('Invalid current version: ' + pkg.version)
+
     if (
       pkg.version !== ref.lastVersion ||
       (ref.refCount !== 0 &&
@@ -117,12 +136,40 @@ export default class PackCommand extends SetAbsPathCommand {
         })))
     ) {
       this.logger.verbose(prefix, 'Making git version...')
-      const gitVersion = await makeGitVersion(pkg, ref)
-      this.logger.info(prefix, 'Using non-authoritative version %s', gitVersion)
+      version = await makeGitSemver({name, version}, ref)
+      const gitVersion = formatVersionWithBuild(version)
+      this.logger.info(prefix, 'Using git-based version %s', gitVersion)
       pkg.version = gitVersion
     }
 
-    const buildFile = getBuildFile(this.project, pkg)
+    if (isDirty) {
+      version.prerelease.push('dirty')
+      const dirtyVersion = formatVersionWithBuild(version)
+      this.logger.info(prefix, 'Using dirty version %s', dirtyVersion)
+      if (dirtyVersion) pkg.version = dirtyVersion
+    }
+
+    let buildFile = getBuildFile(this.project, pkg)
+    if (!this.options.force && (await exists(buildFile))) {
+      if (!isDirty || !this.options.dirty) {
+        throw new ValidationError(
+          'EPKGBUILT',
+          'Package %s already exists. Use --force to overwrite.',
+          homedir.minimize(buildFile),
+        )
+      }
+      let i = 0
+
+      do {
+        ++i
+        const ver = cloneDeep(version)
+        version.prerelease.push(`${i}`)
+        pkg.version = formatVersionWithBuild(ver)
+        buildFile = getBuildFile(this.project, pkg)
+        this.logger.info(prefix, 'Try: %s', buildFile)
+      } while (await exists(buildFile))
+    }
+    this.logger.info(prefix, 'Target: %s', buildFile)
     if (!this.options.force && (await exists(buildFile))) {
       throw new ValidationError(
         'EPKGBUILT',
@@ -130,7 +177,6 @@ export default class PackCommand extends SetAbsPathCommand {
         homedir.minimize(buildFile),
       )
     }
-    this.logger.info(prefix, 'Target: %s', buildFile)
 
     // check if any non-bundled dependencies are defined as links, fail if they are
     // and instruct the user to run `prepare`

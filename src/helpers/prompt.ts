@@ -4,12 +4,12 @@ import * as log from 'npmlog'
 export async function confirm(message: string) {
   log.pause()
 
-  const confirm = await inquirer.prompt<{
-    confirm: boolean
+  const {result} = await inquirer.prompt<{
+    result: boolean
   }>([
     {
       type: 'expand',
-      name: 'confirm',
+      name: 'result',
       message,
       default: 2,
       choices: [
@@ -21,7 +21,7 @@ export async function confirm(message: string) {
 
   log.resume()
 
-  return confirm
+  return result
 }
 
 interface PromptOptions<T = inquirer.Answers> {
@@ -33,7 +33,7 @@ interface SelectOptions<C extends inquirer.ChoiceType>
   choices: ReadonlyArray<C>
 }
 
-type ChoiceValue<C extends inquirer.ChoiceType> = {
+interface ChoiceValue<C extends inquirer.ChoiceType> {
   prompt: C extends string ? C : C extends {value: infer T} ? T : never
 }
 
