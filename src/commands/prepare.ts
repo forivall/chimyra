@@ -9,14 +9,14 @@ import {name as prefix} from '../constants'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import batchPackages from '../helpers/batch-packages'
 import {getBuildFile} from '../helpers/build-paths'
+import describeRef from '../helpers/git/describe-ref'
+import hasDirectoryChanged from '../helpers/git/has-directory-changed'
 import * as homedir from '../helpers/homedir'
+import resolveTransitiveDependencies from '../helpers/resolve-transitive-deps'
 import {tuple} from '../helpers/types'
-import PackageGraphNode from '../model/graph-node'
+import PackageGraph from '../model/graph'
 import Package from '../model/package'
-import hasDirectoryChanged from '../helpers/git/has-directory-changed';
-import describeRef from '../helpers/git/describe-ref';
-import {makeGitVersion} from './pack';
-import PackageGraph from '../model/graph';
+import {makeGitVersion} from './pack'
 
 export const command = 'prepare'
 export const aliases = ['prep']
@@ -177,35 +177,6 @@ export default class PrepareCommand extends Command {
     // if packages need to be created at other git versions, fail
   }
 
-  resolveTransitiveDependencies(parent: PackageGraphNode, graph = this.packageGraph, depth = 0) {
-    // See also: @lerna/collect-updates:lib/collect-dependents
-
-    // walk through dependencies of dependencies, until we have the full tree
-    if (depth > 100) {
-      throw new Error('infinite recursion probably')
-    }
-    if (!this.transDeps) this.transDeps = new Map()
-
-    const next: PackageGraphNode[] = []
-
-    // TODO: resolve transitive dependencies at all versions -- update
-    // packageGraph to resolve out-of-version local dependencies (into nearbyDependencies)
-    // TODO: will require building of package at that version, will need to read
-    // package.json from that git commit, index git commits for versions, etc.
-
-    for (const depName of parent.localDependencies.keys()) {
-      const node = graph.get(depName)!
-
-      if (this.transDeps.has(depName)) continue
-
-      this.transDeps.set(depName, node.pkg)
-      // breadth first search
-      next.push(node)
-    }
-    // traverse
-    next.forEach((node) => this.resolveTransitiveDependencies(node, graph, depth + 1))
-  }
-
   /**
    * Side Effect: mutates the packages in memory
    */
@@ -261,6 +232,9 @@ export default class PrepareCommand extends Command {
     }
   }
 }
+// tslint:disable-next-line: no-empty-interface
+export default interface PrepareCommand extends resolveTransitiveDependencies {}
+PrepareCommand.prototype.resolveTransitiveDependencies = resolveTransitiveDependencies
 
 export function handler(argv: Args) {
   return new PrepareCommand(argv)
