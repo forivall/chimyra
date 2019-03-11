@@ -35,7 +35,11 @@ export default class ForceDedupeCommand extends Command {
       throw new NoCurrentPackage()
     }
     const packages = (this.options.names || []).length > 0 ? this.options.names! : ['@types/node']
-    if (packages.some((name) => !name.startsWith('@types/')) && !(await confirm(NOT_TYPES))) {
+    if (
+      !this.options.dryRun &&
+      packages.some((name) => !name.startsWith('@types/')) &&
+      !(await confirm(NOT_TYPES))
+    ) {
       return
     }
     const globOptions: GlobbyOptions = {
