@@ -218,8 +218,8 @@ export default class Project {
     return iterate(nestedResults).flatten().toArray()
   }
 
-  getPackages() {
-    const mapper = (packageConfigPath: string) =>
+  async getPackages() {
+    const mapper = async (packageConfigPath: string) =>
       loadJsonFile(packageConfigPath).then(
         (packageJson) =>
           new Package(
@@ -229,16 +229,16 @@ export default class Project {
           ),
       )
 
-    return this.findFiles('package.json', (filePaths) =>
+    return this.findFiles('package.json', async (filePaths) =>
       pMap(filePaths, mapper, {concurrency: 50}),
     )
   }
 
-  getPackageLicensePaths() {
+  async getPackageLicensePaths() {
     return this.findFiles(Project.LICENSE_GLOB, null, {case: false})
   }
 
-  serializeConfig() {
+  async serializeConfig() {
     // TODO: might be package.json prop
     return writeJsonFile(this.rootConfigLocation, this.config, {
       indent: 2,
@@ -247,7 +247,7 @@ export default class Project {
   }
 }
 
-export const getPackages = (cwd: string) => new Project(cwd).getPackages()
+export const getPackages = async (cwd: string) => new Project(cwd).getPackages()
 
 function fpNormalize(fp: EntryItem) {
   const s = typeof fp === 'string' ? fp : fp.path

@@ -1,8 +1,11 @@
+import * as D from 'debug'
 import * as semver from 'semver'
 
 import ValidationError from '../errors/validation'
 import {NpaResultExt} from '../helpers/package-arg'
 import Package from './package'
+
+const debug = D('chimer:model:graph-node')
 
 /**
  * Represents a node in a PackageGraph.
@@ -57,12 +60,13 @@ export default class PackageGraphNode {
     parent?: Partial<PackageGraphNode>
   ) {
     if (file && chi && chi.fetchSpec) {
+      debug('satisfies? testing %s@%s against %s (chi)', this.name, this.version, chi.fetchSpec)
       const fileVersion = semver.coerce(file.version)
       if (!fileVersion || !semver.satisfies(fileVersion, chi.fetchSpec)) {
         throw new ValidationError(
           'EINVALIDVERSION',
           'File %s does not satisfy version %s in %s',
-          file.name, chi.fetchSpec, (parent || {}).name || '<unknown>'
+          file.buildPath, chi.fetchSpec, (parent || {}).name || '<unknown>'
         )
       }
       return semver.satisfies(this.version, chi.fetchSpec)

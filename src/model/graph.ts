@@ -92,26 +92,23 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
           return currentNode.externalDependencies.set(depName, resolved)
         }
 
-        log.silly(
-          'PACKAGE_GRAPH',
-          'In %s: Checking if %s@%s satisfies %j',
-          currentNode.name,
-          depName,
-          depNode.version,
-          resolved,
-        )
-
-        if (
+        const depends = (
           forceLocal ||
           resolved.fetchSpec === depNode.location ||
           depNode.satisfies(resolved, currentNode)
-        ) {
-          log.silly(
-            'PACKAGE_GRAPH',
-            '%s depends on %s',
-            currentNode.name,
-            depName,
-          )
+        )
+
+        log.silly(
+          'PACKAGE_GRAPH',
+          'In %s: %s@%s %s %j',
+          currentNode.name,
+          depName,
+          depNode.version,
+          depends ? 'depends on' : 'mismatch',
+          resolved,
+        )
+
+        if (depends) {
           // a local file: specifier OR a matching semver
           currentNode.localDependencies.set(depName, resolved)
           depNode.localDependents.set(currentName, currentNode)
