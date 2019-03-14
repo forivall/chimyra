@@ -49,7 +49,7 @@ export interface Args extends CommandArgs {
   devDeps?: boolean
 }
 
-export default class PrepareCommand extends Command {
+export default class PrepareCommand extends resolveTransitiveDependencies(Command) {
   options!: Args
   transDeps!: Map<string, Package>
   batchedDeps!: Package[][]
@@ -228,13 +228,10 @@ export default class PrepareCommand extends Command {
     for (const batch of this.batchedDeps) {
       // update package.json to point to package
       this.logger.verbose(prefix, 'Updating %s...', batch.map((p) => p.name))
-      await pMap(batch, (pkg) => pkg.serialize())
+      await pMap(batch, async (pkg) => pkg.serialize())
     }
   }
 }
-// tslint:disable-next-line: no-empty-interface
-export default interface PrepareCommand extends resolveTransitiveDependencies {}
-PrepareCommand.prototype.resolveTransitiveDependencies = resolveTransitiveDependencies
 
 export function handler(argv: Args) {
   return new PrepareCommand(argv)

@@ -22,7 +22,7 @@ export interface Options extends GlobalOptions {
   deps?: string[]
 }
 
-export default class UpdateCommand extends Command {
+export default class UpdateCommand extends resolveTransitiveDependencies(Command) {
   options!: Options
   modifiedPackages!: Package[]
   initialize() {
@@ -86,10 +86,6 @@ export default class UpdateCommand extends Command {
   dryRun: undefined
 
 }
-// tslint:disable-next-line: no-empty-interface
-export default interface UpdateCommand extends resolveTransitiveDependencies {}
-UpdateCommand.prototype.resolveTransitiveDependencies = resolveTransitiveDependencies
-
 
 export function handler(argv: Options) {
   return new UpdateCommand(argv)

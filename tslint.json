@@ -28,7 +28,8 @@
       "severity": "warn"
     },
     "underscore-consistent-invocation": {
-      "severity": "warn"
+      // "severity": "warn",
+      "options": {"style": "static"}
     }
   }
 }
