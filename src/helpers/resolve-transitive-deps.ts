@@ -16,9 +16,7 @@ interface Context {
 // tslint:disable-next-line: variable-name
 export const resolveTransitiveDependenciesMixin = <T extends new (...args: any[]) => Command>(Ctor: T) =>
 class ResolveTransitiveDependencies extends (Ctor as new (...args: ConstructorParameters<T>) => Context) {
-  packageGraph!: PackageGraph
-  transDeps!: Map<string, Package>
-  currentPackageNode?: PackageGraphNode
+  transDeps?: Map<string, Package>
 
   resolveTransitiveDependencies(
     parent = this.currentPackageNode || fail(),
@@ -51,6 +49,8 @@ class ResolveTransitiveDependencies extends (Ctor as new (...args: ConstructorPa
     }
     // traverse
     next.forEach((node) => this.resolveTransitiveDependencies(node, graph, depth + 1))
+
+    return this.transDeps
   }
 }
 

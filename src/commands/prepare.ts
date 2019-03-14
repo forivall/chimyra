@@ -51,7 +51,6 @@ export interface Args extends CommandArgs {
 
 export default class PrepareCommand extends resolveTransitiveDependencies(Command) {
   options!: Args
-  transDeps!: Map<string, Package>
   batchedDeps!: Package[][]
   batchedUpdates!: Package[][]
 
@@ -75,9 +74,9 @@ export default class PrepareCommand extends resolveTransitiveDependencies(Comman
     // update representation of package.json replacing directory based file:
     // specifiers with tarballs
 
-    this.resolveTransitiveDependencies(this.currentPackageNode)
+    const transDeps = this.resolveTransitiveDependencies(this.currentPackageNode)
     this.batchedDeps = batchPackages(
-      iterate(this.transDeps.values()).concat([this.currentPackage]),
+      iterate(transDeps.values()).concat([this.currentPackage]),
       {
         project: this.project,
       },

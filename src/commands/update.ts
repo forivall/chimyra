@@ -46,10 +46,10 @@ export default class UpdateCommand extends resolveTransitiveDependencies(Command
     console.log('thqis.packageGraph:', [...this.packageGraph.keys()].join(' '))
     console.log('cpn.externalDependencies:', [...cpn.externalDependencies.keys()].join(' '))
     console.log('cpn.localDependencies:', [...cpn.localDependencies.keys()].join(' '))
-    this.resolveTransitiveDependencies()
-    console.log('this.transDeps:', [...this.transDeps.keys()].join(' '))
+    const transDeps = this.resolveTransitiveDependencies()
+    console.log('this.transDeps:', [...transDeps.keys()].join(' '))
 
-    for (const p of this.transDeps.values()) {
+    for (const p of transDeps.values()) {
       const n = this.packageGraph.get(p.name)!
       for (const [depId, depMani] of depManifests) {
         const localDep = n.localDependencies.get(depMani.name!)
