@@ -12,7 +12,7 @@ import {getBuildFile} from '../helpers/build-paths'
 import describeRef from '../helpers/git/describe-ref'
 import hasDirectoryChanged from '../helpers/git/has-directory-changed'
 import * as homedir from '../helpers/homedir'
-import resolveTransitiveDependencies from '../helpers/resolve-transitive-deps'
+import ResolveTransitiveDependencies from '../helpers/resolve-transitive-deps'
 import {tuple} from '../helpers/types'
 import PackageGraph from '../model/graph'
 import Package from '../model/package'
@@ -49,7 +49,7 @@ export interface Args extends CommandArgs {
   devDeps?: boolean
 }
 
-export default class PrepareCommand extends resolveTransitiveDependencies(Command) {
+export default class PrepareCommand extends ResolveTransitiveDependencies(Command) {
   options!: Args
   batchedDeps!: Package[][]
   batchedUpdates!: Package[][]

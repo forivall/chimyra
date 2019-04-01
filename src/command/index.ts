@@ -316,3 +316,10 @@ export default abstract class Command {
 
   abstract dryRun?(): any | Promise<any>
 }
+
+declare class CommandCtorArgsHelper extends Command {
+  dryRun: undefined
+  initialize(): boolean | void | Promise<boolean | void>
+  execute(): void
+}
+export type CommandConstructorParams = ConstructorParameters<typeof CommandCtorArgsHelper>

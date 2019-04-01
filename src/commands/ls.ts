@@ -8,7 +8,9 @@ import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import batchPackages from '../helpers/batch-packages'
-import Package from '../model/package';
+import {BuildFile, NpaResultExt} from '../helpers/package-arg'
+import resolveTransitiveDeps from '../helpers/resolve-transitive-deps'
+import Package from '../model/package'
 
 export const command = 'ls [names..]'
 export const describe = 'list packages'
@@ -41,19 +43,30 @@ export interface Options extends GlobalOptions {
 
 class Unexpected extends Error { constructor(value: never) { super(`Unexpected value ${value}`) }}
 
-export default class LsCommand extends Command {
+export default class LsCommand extends resolveTransitiveDeps(Command) {
   sort!: Options['sort']
   options!: Options
   initialize() {
+    let rawPackageList = this.packageGraph.rawPackageList
+    const {names} = this.options
+    if (names) {
+      const baseNames = names.map((p) => path.basename(path.resolve(p)))
+      if (names.indexOf('.') >= 0) {
+        const transDeps = this.resolveTransitiveDependencies()
+        rawPackageList = rawPackageList.filter((p) => transDeps.has(p.name) || baseNames.indexOf(p.name) >= 0)
+      } else {
+        rawPackageList = rawPackageList.filter((p) => baseNames.indexOf(p.name) >= 0)
+      }
+    }
     let pkgs: Iterable<Package>
     switch (this.sort) {
     case 'topo':
-      pkgs = iterate(reversed(batchPackages(this.packageGraph.rawPackageList)))
+      pkgs = iterate(reversed(batchPackages(rawPackageList)))
       .map(sortByName)
       .flatten()
       break
     case 'dir':
-      pkgs = _.sortBy([...this.packageGraph.rawPackageList], 'location')
+      pkgs = _.sortBy([...rawPackageList], 'location')
       break
     default: throw new Unexpected(this.sort)
     }
@@ -66,7 +79,12 @@ export default class LsCommand extends Command {
       if (!this.options.dev) {
         localDepsNames = localDepsNames.filter((depName) => Boolean((pkg.dependencies || {})[depName]))
       }
-      console.log(chalk`{grey ${dir}/}${name} {yellow ${version}} {green ${localDepsNames.join(' ')}}`)
+      const localDepsWithVersions = localDepsNames.map((n) => {
+        const v = ((g.localDependencies.get(n) || ({} as Partial<NpaResultExt>))
+        .file || ({} as Partial<BuildFile>)).version || (pkg.chimerDependencies || {})[n]
+        return v ? `${chalk.green(n)}@${chalk.yellowBright(v)}` : n
+      })
+      console.log(chalk`{grey ${dir}/}${name} {yellow ${version}} ${localDepsWithVersions.join(' ')}`)
     }
   }
   dryRun: undefined

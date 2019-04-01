@@ -1,8 +1,7 @@
-import PackageGraphNode from '../model/graph-node'
-import PackageGraph from '../model/graph'
-import Package from '../model/package'
+import Command, {CommandConstructorParams} from '../command'
 import {NoCurrentPackage} from '../errors/validation'
-import Command, {CommandArgs, CommandContext} from '../command';
+import PackageGraphNode from '../model/graph-node'
+import Package from '../model/package'
 
 function fail(): never {
   throw new NoCurrentPackage()
@@ -14,13 +13,21 @@ interface Context {
 }
 
 // tslint:disable-next-line: variable-name
-export const resolveTransitiveDependenciesMixin = <T extends new (...args: any[]) => Command>(Ctor: T) =>
+const mixin = <T extends new (...args: any[]) => Command>(Ctor: T) =>
+// tslint:disable-next-line: no-shadowed-variable
 class ResolveTransitiveDependencies extends (Ctor as new (...args: ConstructorParameters<T>) => Context) {
   transDeps?: Map<string, Package>
+
+  _initTransDeps() {
+    if (this.transDeps) return this.transDeps
+    this.transDeps = new Map()
+    return this.transDeps
+  }
 
   resolveTransitiveDependencies(
     parent = this.currentPackageNode || fail(),
     graph = this.packageGraph,
+    transDeps = this._initTransDeps(),
     depth = 0
   ) {
     // See also: @lerna/collect-updates:lib/collect-dependents
@@ -29,7 +36,6 @@ class ResolveTransitiveDependencies extends (Ctor as new (...args: ConstructorPa
     if (depth > 100) {
       throw new Error('infinite recursion probably')
     }
-    if (!this.transDeps) this.transDeps = new Map()
 
     const next: PackageGraphNode[] = []
 
@@ -41,22 +47,24 @@ class ResolveTransitiveDependencies extends (Ctor as new (...args: ConstructorPa
     for (const depName of parent.localDependencies.keys()) {
       const node = graph.get(depName)!
 
-      if (this.transDeps.has(depName)) continue
+      if (transDeps.has(depName)) continue
 
-      this.transDeps.set(depName, node.pkg)
+      transDeps.set(depName, node.pkg)
       // breadth first search
       next.push(node)
     }
     // traverse
-    next.forEach((node) => this.resolveTransitiveDependencies(node, graph, depth + 1))
+    next.forEach((node) => this.resolveTransitiveDependencies(node, graph, transDeps, depth + 1))
 
-    return this.transDeps
+    return transDeps
   }
 }
 
-type AbstractInstanceType<A, T> = T extends (new(...args: any[]) => any) ? T : A
-type CommandConstructorParameters<T> = T extends new (...args: infer P) => any ? P : [CommandArgs, CommandContext?]
+interface ResolveTransitiveDependencies extends InstanceType<ReturnType<typeof mixin>> {}
 // tslint:disable-next-line: variable-name
-export default resolveTransitiveDependenciesMixin as <T extends typeof Command>(Ctor: T) => new (...args: CommandConstructorParameters<T>) => (
-  InstanceType<ReturnType<typeof resolveTransitiveDependenciesMixin>> & AbstractInstanceType<Command, T>
+const ResolveTransitiveDependencies = mixin as <T extends typeof Command>(Ctor: T) => (
+  new (...args: CommandConstructorParameters<T>) => ResolveTransitiveDependencies & AbstractInstanceType<Command, T>
 )
+type AbstractInstanceType<A, C> = C extends (new(...args: any[]) => infer T) ? T : A
+type CommandConstructorParameters<T> = T extends new (...args: infer P) => any ? P : CommandConstructorParams
+export default ResolveTransitiveDependencies

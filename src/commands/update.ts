@@ -7,7 +7,7 @@ import Command, {GlobalOptions} from '../command'
 import {NoCurrentPackage} from '../errors/validation'
 import {getBuildFile} from '../helpers/build-paths'
 import {minimize} from '../helpers/homedir'
-import resolveTransitiveDependencies from '../helpers/resolve-transitive-deps'
+import ResolveTransitiveDependencies from '../helpers/resolve-transitive-deps'
 import {tuple} from '../helpers/types'
 import Package from '../model/package'
 
@@ -22,7 +22,7 @@ export interface Options extends GlobalOptions {
   deps?: string[]
 }
 
-export default class UpdateCommand extends resolveTransitiveDependencies(Command) {
+export default class UpdateCommand extends ResolveTransitiveDependencies(Command) {
   options!: Options
   modifiedPackages!: Package[]
   initialize() {

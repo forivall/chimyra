@@ -1,10 +1,10 @@
+import {PackageJson} from '@npm/types'
 import * as log from 'npmlog'
 import {Argv, DetailedArguments, Options as YargsOptions} from 'yargs'
 
 import {CommandArgs} from './command'
-import {PackageJson} from '@npm/types'
-import lazyExport from './helpers/lazy-export'
 import {name} from './constants'
+import lazyExport from './helpers/lazy-export'
 
 // tslint:disable-next-line:no-require-imports
 import yargs = require('yargs/yargs')
@@ -12,8 +12,8 @@ import yargs = require('yargs/yargs')
 // tslint:disable-next-line:no-var-requires no-require-imports
 const pkg: PackageJson = require('../package.json')
 
-export function globalOptions(y: yargs.Argv) {
-  const opts: {[key: string]: yargs.Options} = {
+export function globalOptions(y: Argv) {
+  const opts: {[key: string]: YargsOptions} = {
     loglevel: {
       defaultDescription: 'info',
       describe: 'What level of logs to report.',
@@ -49,7 +49,7 @@ export function cli(argv?: string[], cwd?: string) {
       const actual: Error & {code?: number} = err || new Error(msg)
 
       if (/Did you mean/.test(actual.message)) {
-        log.error(name, `Unknown command "${(y.parsed as yargs.Detailed).argv._[0]}"`)
+        log.error(name, `Unknown command "${(y.parsed as DetailedArguments).argv._[0]}"`)
       }
 
       log.error(name, actual.message)
