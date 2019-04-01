@@ -4,7 +4,7 @@ import * as fs from 'fs-extra'
 import * as _ from 'lodash'
 import * as semver from 'semver'
 import writeJsonFile from 'write-json-file'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import {NoCurrentPackage} from '../errors/validation'

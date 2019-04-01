@@ -2,7 +2,7 @@ import * as path from 'path'
 
 import {LinkOptions, linkIfExists as linkIfExists_} from 'gentle-fs'
 import * as rpt from 'read-package-tree'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'

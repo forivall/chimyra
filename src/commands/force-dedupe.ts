@@ -1,6 +1,6 @@
 import * as path from 'path'
 import * as globby from 'globby'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'

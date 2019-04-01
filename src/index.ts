@@ -1,10 +1,13 @@
 import * as log from 'npmlog'
-import * as yargs from 'yargs/yargs'
+import {Argv, DetailedArguments, Options as YargsOptions} from 'yargs'
 
 import {CommandArgs} from './command'
 import {PackageJson} from '@npm/types'
 import lazyExport from './helpers/lazy-export'
 import {name} from './constants'
+
+// tslint:disable-next-line:no-require-imports
+import yargs = require('yargs/yargs')
 
 // tslint:disable-next-line:no-var-requires no-require-imports
 const pkg: PackageJson = require('../package.json')

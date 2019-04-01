@@ -4,7 +4,7 @@ import {ExecaReturns} from 'execa'
 import * as fs from 'fs-extra'
 import {iterate} from 'iterare'
 import * as semver from 'semver'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 import {cloneDeep} from 'lodash'
 
 import {GlobalOptions} from '../command'

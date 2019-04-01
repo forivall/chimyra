@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import {iterate} from 'iterare'
 import * as _ from 'lodash'
 import reversed from 'reversed'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import batchPackages from '../helpers/batch-packages'

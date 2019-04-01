@@ -2,7 +2,7 @@ import * as fs from 'fs-extra'
 import iterate from 'iterare'
 import * as _ from 'lodash'
 import pMap from 'p-map'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {CommandArgs} from '../command'
 import {name as prefix} from '../constants'

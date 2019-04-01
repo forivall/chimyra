@@ -1,4 +1,4 @@
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 

@@ -1,7 +1,7 @@
 import * as path from 'path'
 
 import * as semver from 'semver'
-import {Argv} from 'yargs/yargs'
+import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
 import {NoCurrentPackage} from '../errors/validation'
