@@ -35,7 +35,7 @@ export default class PackageGraphNode {
       },
       prereleaseId: {
         // an existing prerelease ID only matters at the beginning
-        value: (semver.prerelease(pkg.version) || []).shift(),
+        value: (semver.prerelease(pkg.version) || []).concat().shift(),
       },
     })
 
@@ -57,25 +57,26 @@ export default class PackageGraphNode {
    */
   satisfies(
     {gitCommittish, gitRange, fetchSpec, file, chi, name}: NpaResultExt,
-    parent?: Partial<PackageGraphNode>
+    parent?: Partial<PackageGraphNode>,
+    options: semver.Options = {includePrerelease: true},
   ) {
     if (file && chi && chi.fetchSpec) {
-      debug('satisfies? testing %s@%s against %s (chi)', this.name, this.version, chi.fetchSpec)
+      debug('satisfies? testing %s@%s against %s (chi) %j', this.name, this.version, chi.fetchSpec, options)
       const fileVersion = semver.coerce(file.version)
-      if (!fileVersion || !semver.satisfies(fileVersion, chi.fetchSpec)) {
+      if (!fileVersion || !semver.satisfies(fileVersion, chi.fetchSpec, options)) {
         throw new ValidationError(
           'EINVALIDVERSION',
           'File %s does not satisfy version %s in %s',
           file.buildPath, chi.fetchSpec, (parent || {}).name || '<unknown>'
         )
       }
-      return semver.satisfies(this.version, chi.fetchSpec)
+      return semver.satisfies(this.version, chi.fetchSpec, options)
     }
     if (file) {
-      return semver.eq(this.version, file.version)
+      return semver.eq(this.version, file.version, options)
     }
     const range = gitCommittish || gitRange || fetchSpec
     if (range == null) throw new Error('TODO: unexpected condition')
-    return semver.satisfies(this.version, range)
+    return semver.satisfies(this.version, range, options)
   }
 }

@@ -87,8 +87,8 @@ export async function makeGitSemver(pkg: {name: string, version: string | semver
     if (!version) throw new Error(`Invalid prompted version ${version}`)
   }
 
-  version.prerelease.push(String((ref.refCount || 1) - 1))
-  version.build.push(ref.sha)
+  version.prerelease = version.prerelease.concat(String((ref.refCount || 1) - 1))
+  version.build = version.build.concat(ref.sha)
 
   return version
 }
@@ -143,7 +143,7 @@ export default class PackCommand extends SetAbsPathCommand {
     }
 
     if (isDirty) {
-      version.prerelease.push('dirty')
+      version.prerelease = version.prerelease.concat('dirty')
       const dirtyVersion = formatVersionWithBuild(version)
       this.logger.info(prefix, 'Using dirty version %s', dirtyVersion)
       if (dirtyVersion) pkg.version = dirtyVersion
@@ -163,7 +163,7 @@ export default class PackCommand extends SetAbsPathCommand {
       do {
         ++i
         const ver = cloneDeep(version)
-        version.prerelease.push(`${i}`)
+        version.prerelease = version.prerelease.concat(`${i}`)
         pkg.version = formatVersionWithBuild(ver)
         buildFile = getBuildFile(this.project, pkg)
         this.logger.info(prefix, 'Try: %s', buildFile)
