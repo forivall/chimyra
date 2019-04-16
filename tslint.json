@@ -30,6 +30,9 @@
     "underscore-consistent-invocation": {
       // "severity": "warn",
       "options": {"style": "static"}
-    }
+    },
+    "no-inferred-empty-object-type": false,
+    "no-null-keyword": false,
+    "no-object-literal-type-assertion": false
   }
 }

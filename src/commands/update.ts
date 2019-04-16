@@ -14,6 +14,7 @@ import Package from '../model/package'
 export const command = 'update [deps..]'
 export const describe = 'Bump the version of dependencies changed since last release'
 
+// tslint:disable-next-line: typedef
 export function builder(y: Argv) {
   return y
 }
@@ -25,7 +26,7 @@ export interface Options extends GlobalOptions {
 export default class UpdateCommand extends ResolveTransitiveDependencies(Command) {
   options!: Options
   modifiedPackages!: Package[]
-  initialize() {
+  initialize(): void {
     if (!this.currentPackage || !this.currentPackageNode) {
       throw new NoCurrentPackage()
     }
@@ -37,7 +38,7 @@ export default class UpdateCommand extends ResolveTransitiveDependencies(Command
       const version = requestedVersion === '*'
         ? this.packageGraph.get(name)!.version
         : requestedVersion
-      return tuple([depId, {name, version}])
+      return [depId, {name, version}] as const
     })
 
     this.modifiedPackages = []
@@ -73,7 +74,7 @@ export default class UpdateCommand extends ResolveTransitiveDependencies(Command
       }
     }
   }
-  async execute() {
+  async execute(): Promise<void> {
     if (!this.modifiedPackages || this.modifiedPackages.length === 0) {
       console.log('Nothing to do')
       return
@@ -83,10 +84,12 @@ export default class UpdateCommand extends ResolveTransitiveDependencies(Command
       await pkg.serialize()
     }
   }
+  // tslint:disable-next-line: member-ordering
   dryRun: undefined
 
 }
 
+// tslint:disable-next-line: typedef
 export function handler(argv: Options) {
   return new UpdateCommand(argv)
 }
