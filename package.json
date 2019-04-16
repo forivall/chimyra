@@ -105,6 +105,7 @@
     "tslint": "^5.15.0",
     "tslint-config-prettier": "^1.18.0",
     "tslint-xo": "^0.16.0",
+    "type-fest": "^0.3.1",
     "typescript": "^3.4.3",
     "xo": "^0.24.0"
   },

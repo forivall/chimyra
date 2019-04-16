@@ -14,6 +14,7 @@ import Project from '../model/project'
 import cleanStack from './helpers/clean-stack'
 import logPackageError from './helpers/log-package-error'
 import warnIfHanging from './helpers/warn-if-hanging'
+import {isChildProcessError} from '../helpers/child-process';
 
 const DEFAULT_CONCURRENCY = 4
 
@@ -67,10 +68,7 @@ export default abstract class Command {
   name = this.constructor.name.replace(/Command$/, '').toLowerCase()
   composed: boolean
   project: Project
-  protected _env: CommandEnv = {
-    ci: false /* require('is-ci') */,
-  }
-  protected _args: CommandArgs
+
   options: GlobalOptions = {}
   concurrency = DEFAULT_CONCURRENCY
   sort: string | null = null
@@ -82,6 +80,11 @@ export default abstract class Command {
 
   then: Promise<CommandResult<this>>['then']
   catch: Promise<CommandResult<this>>['catch']
+
+  protected _env: CommandEnv = {
+    ci: false /* require('is-ci') */,
+  }
+  protected _args: CommandArgs
 
   constructor(args: CommandArgs, context: CommandContext = {}) {
     this._args = args
@@ -135,32 +138,35 @@ export default abstract class Command {
     let result: CommandResult<this>
     // launch the command
     try {
+      // tslint:disable: no-void-expression
       await Promise.resolve(this.configureEnvironment())
       await Promise.resolve(this.configureOptions())
       await Promise.resolve(this.configureProperties())
       await Promise.resolve(this.configureLogging())
       await Promise.resolve(this.runValidations())
       await Promise.resolve(this.runPreparations())
-      result = await this.runCommand()
+      // tslint:enable: no-void-expression
+      result = await this.runCommand() as CommandResult<this>
     } catch (err) {
-      if (err.pkg) {
+      const er = err as Error
+      if (isChildProcessError(er)) {
         // Cleanly log specific package error details
-        logPackageError(err)
-      } else if (err.name !== 'ValidationError') {
+        logPackageError(er)
+      } else if (er.name !== 'ValidationError') {
         // npmlog does some funny stuff to the stack by default,
         // so pass it directly to avoid duplication.
-        log.error(name, '%s', cleanStack(err, this.constructor.name))
+        log.error(name, '%s', cleanStack(er, this.constructor.name))
       }
 
       // ValidationError does not trigger a log dump, nor do external package errors
-      if (err.name !== 'ValidationError' && !err.pkg) {
+      if (er.name !== 'ValidationError' && isChildProcessError(er)) {
         writeLogFile(this.project.rootPath)
       }
 
       warnIfHanging()
 
       // error code is handled by cli.fail()
-      throw err
+      throw er
     }
     warnIfHanging()
 
@@ -201,7 +207,7 @@ export default abstract class Command {
       this.project.config,
       // Environmental defaults prepared in previous step
       this._env,
-    )
+    ) as GlobalOptions
   }
 
   configureProperties() {
@@ -299,7 +305,7 @@ export default abstract class Command {
     }
   }
 
-  async runCommand() {
+  async runCommand(): Promise<unknown> {
     const proceed = (await this.initialize()) as boolean | undefined
     if (proceed !== false) {
       if (this.options.dryRun) {

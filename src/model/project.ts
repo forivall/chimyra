@@ -27,7 +27,9 @@ function loadConfig(explorer: cosmiconfig.Explorer, cwd?: string) {
     loaded = explorer.searchSync(cwd)
   } catch (err) {
     // redecorate JSON syntax errors, avoid debug dump
+    // tslint:disable-next-line: no-unsafe-any
     if (err.name === 'JSONError') {
+      // tslint:disable-next-line: no-unsafe-any
       throw new ValidationError(err.name, err.message)
     }
 
@@ -50,7 +52,7 @@ export default class Project {
     packages?: string[]
     buildDir?: string
     command?: {
-      [key: string]: any
+      [key: string]: unknown
     },
     ignore?: string[]
   }
@@ -108,7 +110,7 @@ export default class Project {
 
     try {
       const manifestLocation = path.join(this.rootPath, 'package.json')
-      const packageJson = loadJsonFileSync(manifestLocation) as npm.PackageJson
+      const packageJson = loadJsonFileSync<npm.PackageJson>(manifestLocation)
 
       if (!packageJson.name) {
         // npm-lifecycle chokes if this is missing, so default like npm init does
@@ -123,6 +125,7 @@ export default class Project {
         value: manifest,
       })
     } catch (err) {
+      // tslint:disable: no-unsafe-any
       // redecorate JSON syntax errors, avoid debug dump
       if (err.name === 'JSONError') {
         throw new ValidationError(err.name, err.message)
@@ -130,6 +133,7 @@ export default class Project {
 
       // try again next time
       console.warn(err.stack || err)
+      // tslint:enable: no-unsafe-any
     }
 
     return manifest
@@ -159,6 +163,7 @@ export default class Project {
       }
     } catch (err) {
       /* istanbul ignore next */
+      // tslint:disable-next-line: no-unsafe-any
       throw new ValidationError(err.name, err.message)
     }
 

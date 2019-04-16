@@ -1,17 +1,17 @@
 import * as path from 'path'
+
 import * as globby from 'globby'
+import * as trash from 'trash'
 import {Argv} from 'yargs'
 
 import Command, {GlobalOptions} from '../command'
+import {name as prefix} from '../constants'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import {confirm} from '../helpers/prompt'
 import {Argument2} from '../helpers/types'
 
 export const command = 'force-dedupe [names..]'
 export const describe = 'list packages'
-
-import trash = require('trash')
-import {name as prefix} from '../constants';
 
 export function builder(y: Argv) {
   return y.options({
@@ -67,6 +67,7 @@ export default class ForceDedupeCommand extends Command {
       return (await trashPaths).concat(paths)
     }, Promise.resolve([]))
   }
+  // tslint:disable-next-line: member-ordering
   dryRun: undefined
   async execute() {
     if (this.trashPaths && this.trashPaths.length > 0) {

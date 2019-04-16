@@ -27,6 +27,9 @@
     "no-unnecessary-type-assertion": {
       "severity": "warn"
     },
+    "typedef": {
+      "severity": "warn"
+    },
     "underscore-consistent-invocation": {
       // "severity": "warn",
       "options": {"style": "static"}

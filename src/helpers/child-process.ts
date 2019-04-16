@@ -9,6 +9,10 @@ export interface ChildProcessError extends execa.ExecaError {
   pkg?: Package
 }
 
+export function isChildProcessError(err: unknown): err is ChildProcessError {
+  return (err as Partial<ChildProcessError>).pkg != null
+}
+
 export interface ChildProcessOptions extends execa.CommonOptions {
   pkg?: Package
 }

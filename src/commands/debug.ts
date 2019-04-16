@@ -11,6 +11,7 @@ import ValidationError from '../errors/validation';
 export const command = 'debug'
 export const describe = 'Internal debugging command'
 
+// tslint:disable-next-line: typedef
 export function builder(y: Argv) {
   return y.options({
     'current-only': {
@@ -19,7 +20,7 @@ export function builder(y: Argv) {
   })
 }
 
-const formatIndent = (o: any) =>
+const formatIndent = (o: unknown): string =>
   indent(util.inspect(o, {colors: true, compact: false}), 4)
 
 export interface Options extends GlobalOptions {
@@ -28,7 +29,7 @@ export interface Options extends GlobalOptions {
 
 export default class DevCommand extends Command {
   options!: Options
-  initialize() {
+  initialize(): void {
     if (this.options.currentOnly) {
       const pkg = this.currentPackage
       if (!pkg) throw new ValidationError('debug', 'must be in package')
@@ -58,12 +59,14 @@ export default class DevCommand extends Command {
       }
     }
   }
+  // tslint:disable-next-line: member-ordering
   dryRun: undefined
-  execute() {
+  execute(): void {
     /* empty */
   }
 }
 
+// tslint:disable-next-line: typedef
 export function handler(argv: Options) {
   return new DevCommand(argv)
 }

@@ -3,10 +3,16 @@ import * as path from 'path'
 import {LinkOptions, linkIfExists as linkIfExists_} from 'gentle-fs'
 import * as rpt from 'read-package-tree'
 import {Argv} from 'yargs'
+import {satisfies} from 'semver'
 
 import Command, {GlobalOptions} from '../command'
-import ValidationError, {NoCurrentPackage} from '../errors/validation'
-import {satisfies} from 'semver';
+import {NoCurrentPackage} from '../errors/validation'
+import {PackageJson} from '@npm/types'
+
+interface RptNode extends rpt.Node {
+  package: PackageJson
+}
+
 
 const linkIfExists = async (from: string, to: string, opts: LinkOptions) => new Promise<void>(
   (resolve, reject) => linkIfExists_(from, to, opts, (err) => err ? reject(err) : resolve())
@@ -15,8 +21,8 @@ const readPackageTree = async (
   root: string, filterWith?: (node: rpt.Node, kidName: string) => void | undefined | boolean
 ) => new Promise<rpt.Node>(
   filterWith
-    ? (resolve, reject) => rpt(root, filterWith, (err, data) => err ? reject(err) : resolve(data))
-    : (resolve, reject) => rpt(root, (err, data) => err ? reject(err) : resolve(data))
+    ? (resolve, reject) => { rpt(root, filterWith, (err, data) => err ? reject(err) : resolve(data)) }
+    : (resolve, reject) => { rpt(root, (err, data) => err ? reject(err) : resolve(data)) }
 )
 
 export const command = 'dev [links..]'
@@ -64,12 +70,12 @@ export default class DevCommand extends Command {
       const t = await readPackageTree(d.location)
       const pt = await ptP
       const opts = {prefix: d.location}
-      return t.children.map((n): Partial<Action> => {
+      return t.children.map((n: RptNode): Partial<Action> => {
         const targetMatch = targetRoots.find((o) => o !== d && o.name === n.name && o.version === n.package.version)
         if (targetMatch) {
           return {opts, to: n.path, from: targetMatch.location}
         }
-        const match = pt.children.find((o) => o.name === n.name && o.package.version === n.package.version)
+        const match = pt.children.find((o: RptNode) => o.name === n.name && o.package.version === n.package.version)
         return {opts, to: n.path, from: match && (match.realpath || match.path)}
       })
       .filter((pair): pair is Action => Boolean(pair.from))
@@ -78,8 +84,8 @@ export default class DevCommand extends Command {
     // link local dependency into current package's node_modules
     const resolveLinksToLocalDeps = ptP.then((pt) => targetRoots.map((d): Partial<Action> => {
       const candidates = pt.children.filter((o) => o.name === d.name)
-      this.logger.info('check', 'matches? %s, %O', d.version, candidates.map((o) => o.package.version))
-      const match = candidates.find((o) => satisfies(o.package.version, `^${d.version}`))
+      this.logger.info('check', 'matches? %s, %O', d.version, candidates.map((o: RptNode) => o.package.version))
+      const match = candidates.find((o: RptNode) => satisfies(o.package.version, `^${d.version}`))
       return {to: match && match.path, from: d.location}
     }).filter((pair): pair is Action => Boolean(pair.to)))
 

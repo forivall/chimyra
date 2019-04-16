@@ -258,10 +258,11 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
    */
   prune(...candidates: PackageGraphNode[]) {
     if (candidates.length === this.size) {
-      return this.clear()
+      this.clear()
+      return
     }
 
-    candidates.forEach((node) => this.remove(node))
+    candidates.forEach((node) => { this.remove(node) })
   }
 
   /**

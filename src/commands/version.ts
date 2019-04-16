@@ -15,6 +15,7 @@ import * as PromptUtilities from '../helpers/prompt'
 import PackageGraphNode from '../model/graph-node'
 import Package from '../model/package'
 import {roArray} from '../helpers/types'
+import {JsonObject} from 'type-fest';
 
 export const command = 'version [bump]'
 export const describe = 'Update the version of the current package'
@@ -121,7 +122,7 @@ export default class VersionCommand extends Command {
   async updateVersionInFile(filePath: string, version: string) {
     const filePathLocal = path.relative(this.currentPackage.location, filePath)
     try {
-      const lockJson = await fs.readJson(filePath)
+      const lockJson = await fs.readJson(filePath) as JsonObject
       lockJson.version = version
       await writeJsonFile(filePath, lockJson, {detectIndent: true})
       this.logger.info(prefix, 'Update %s', filePathLocal)
@@ -132,6 +133,7 @@ export default class VersionCommand extends Command {
     // TODO: show a confirmation prompt
   }
 
+  // tslint:disable-next-line: member-ordering
   dryRun: undefined
   async execute() {
     // TODO: run package lifecycle, like preversion, etc.
