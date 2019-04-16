@@ -218,27 +218,26 @@ export default class Project {
     return iterate(nestedResults).flatten().toArray()
   }
 
-  async getPackages() {
-    const mapper = async (packageConfigPath: string) =>
-      loadJsonFile(packageConfigPath).then(
-        (packageJson) =>
-          new Package(
-            packageJson as npm.PackageJson,
-            path.dirname(packageConfigPath),
-            this.rootPath,
-          ),
+  async getPackages(): Promise<Package[]> {
+    const mapper = async (packageConfigPath: string): Promise<Package> => {
+      const packageJson = await loadJsonFile<npm.PackageJson>(packageConfigPath)
+      return new Package(
+        packageJson,
+        path.dirname(packageConfigPath),
+        this.rootPath,
       )
+    }
 
     return this.findFiles('package.json', async (filePaths) =>
       pMap(filePaths, mapper, {concurrency: 50}),
     )
   }
 
-  async getPackageLicensePaths() {
-    return this.findFiles(Project.LICENSE_GLOB, null, {case: false})
+  async getPackageLicensePaths(): Promise<string[]> {
+    return this.findFiles(Project.LICENSE_GLOB, undefined, {case: false})
   }
 
-  async serializeConfig() {
+  async serializeConfig(): Promise<string> {
     // TODO: might be package.json prop
     return writeJsonFile(this.rootConfigLocation, this.config, {
       indent: 2,
@@ -247,9 +246,10 @@ export default class Project {
   }
 }
 
+// tslint:disable-next-line: typedef
 export const getPackages = async (cwd: string) => new Project(cwd).getPackages()
 
-function fpNormalize(fp: EntryItem) {
+function fpNormalize(fp: EntryItem): string {
   const s = typeof fp === 'string' ? fp : fp.path
   return path.normalize(s)
 }

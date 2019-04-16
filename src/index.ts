@@ -1,6 +1,6 @@
 import {PackageJson} from '@npm/types'
 import * as log from 'npmlog'
-import {Argv, DetailedArguments, Options as YargsOptions} from 'yargs'
+import {Argv, Options as YargsOptions} from 'yargs'
 
 import {CommandArgs} from './command'
 import {name} from './constants'
@@ -9,11 +9,15 @@ import lazyExport from './helpers/lazy-export'
 // tslint:disable-next-line:no-require-imports
 import yargs = require('yargs/yargs')
 
-// tslint:disable-next-line:no-var-requires no-require-imports
+type NonFalse<T> = T extends false ? never : T
+type DetailedArguments = NonFalse<Argv['parsed']>
+
+// tslint:disable-next-line:no-var-requires no-require-imports no-unsafe-any
 const pkg: PackageJson = require('../package.json')
 
 export function globalOptions(y: Argv) {
-  const opts: {[key: string]: YargsOptions} = {
+  // tslint:disable-next-line: no-object-literal-type-assertion
+  const opts = {
     loglevel: {
       defaultDescription: 'info',
       describe: 'What level of logs to report.',
@@ -30,13 +34,14 @@ export function globalOptions(y: Argv) {
         'Run only the `initialize()` stage of the command, and describe command state',
       type: 'boolean',
     },
-  }
+  } as const
 
   return y
     .options(opts)
     .group(Object.keys(opts).concat(['help', 'version']), 'Global Options:')
 }
 
+// tslint:disable-next-line: typedef
 export function cli(argv?: string[], cwd?: string) {
   const y = yargs(argv, cwd, require)
   return globalOptions(y)
@@ -61,6 +66,7 @@ export function cli(argv?: string[], cwd?: string) {
     .alias('V', 'version')
 }
 
+// tslint:disable-next-line: typedef
 export default function main(argv: string[]) {
   const ctx: CommandArgs = {
     chimerVersion: pkg.version,
@@ -75,7 +81,7 @@ export default function main(argv: string[]) {
 // typecheck command modules
 
 declare const DevCommand: typeof import('./commands/dev').default
-// tslint:disable-next-line:no-require-imports
+// tslint:disable-next-line:no-require-imports no-unsafe-any
 lazyExport(module, 'DevCommand', () => require('./commands/dev').default as typeof DevCommand)
 
 export {DevCommand}

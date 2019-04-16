@@ -1,3 +1,4 @@
+import * as D from 'debug'
 import {Dependencies} from '@npm/types'
 import iterate from 'iterare'
 import * as log from 'npmlog'
@@ -8,6 +9,8 @@ import {tuple} from '../helpers/types'
 import PackageGraphNode from './graph-node'
 import Package from './package'
 import Project from './project'
+
+const debug = D('chimer:model:graph')
 
 type MapKeys<T> = NonNullable<
   {[K in keyof T]: T[K] extends Map<any, any> ? K : never}[keyof T]
@@ -38,6 +41,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
     const seen = new Map<string, string[]>()
     super(
       iterate(packages).map((pkg) => {
+        debug('iterating %s', pkg.name)
         const name = pkg.name
         if (seen.has(name)) {
           seen.get(name)!.push(pkg.location)

@@ -114,8 +114,10 @@ export default abstract class Command {
     }
 
     // proxy "Promise" methods to "private" instance
+    // tslint:disable-next-line: promise-function-async
     this.then = (onResolved, onRejected) => runner.then(onResolved, onRejected)
     /* istanbul ignore next */
+    // tslint:disable-next-line: promise-function-async
     this.catch = (onRejected) => runner.catch(onRejected)
   }
 
@@ -133,12 +135,12 @@ export default abstract class Command {
     let result: CommandResult<this>
     // launch the command
     try {
-      await this.configureEnvironment()
-      await this.configureOptions()
-      await this.configureProperties()
-      await this.configureLogging()
-      await this.runValidations()
-      await this.runPreparations()
+      await Promise.resolve(this.configureEnvironment())
+      await Promise.resolve(this.configureOptions())
+      await Promise.resolve(this.configureProperties())
+      await Promise.resolve(this.configureLogging())
+      await Promise.resolve(this.runValidations())
+      await Promise.resolve(this.runPreparations())
       result = await this.runCommand()
     } catch (err) {
       if (err.pkg) {

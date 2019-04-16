@@ -12,21 +12,19 @@ import {tuple} from '../types';
 /**
  * Symlink bins of srcPackage to node_modules/.bin in destPackage
  */
-export default async function symlinkBinary(srcPackageRef: Package | string, destPackageRef: Package | string) {
+export default async function symlinkBinary(srcPackageRef: Package | string, destPackageRef: Package | string): Promise<void> {
   const [srcPackage, destPackage] = await Promise.all(tuple([
     resolvePackageRef(srcPackageRef),
     resolvePackageRef(destPackageRef),
   ]))
 
-  const actions = Object.keys(srcPackage.bin).map((name) => {
+  const actions = Object.keys(srcPackage.bin).map(async (name) => {
     const src = path.join(srcPackage.location, srcPackage.bin[name])
     const dst = path.join(destPackage.binLocation, name)
 
-    return fs.pathExists(src).then((exists) => {
-      if (exists) {
-        return {src, dst}
-      }
-    })
+    if (await fs.pathExists(src)) {
+      return {src, dst}
+    }
   })
 
   if (actions.length === 0) {
@@ -42,7 +40,7 @@ export default async function symlinkBinary(srcPackageRef: Package | string, des
   })
 }
 
-function resolvePackageRef(pkgRef: string | Package) {
+async function resolvePackageRef(pkgRef: string | Package): Promise<Package> {
   // don't use instanceof because it fails across nested module boundaries
   if (typeof pkgRef !== 'string') {
     if (pkgRef.location) {
@@ -51,7 +49,7 @@ function resolvePackageRef(pkgRef: string | Package) {
     throw new Error('Invalid pkgRef')
   }
 
-  return readPkg(pkgRef, {normalize: false}).then(
+  return readPkg({cwd: pkgRef, normalize: false}).then(
     (json) => new Package(json as PackageJson, pkgRef),
   )
 }
