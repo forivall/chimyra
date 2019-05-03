@@ -147,7 +147,7 @@ export default class VersionCommand extends Command {
       await this.updateVersionInFile(this.currentPackage.lockfileLocation, version)
       await this.updateVersionInFile(this.currentPackage.shrinkwrapLocation, version)
 
-      await gitAdd(this.changedFiles, {cwd: this.currentPackage.location})
+      await gitAdd(this.changedFiles, {cwd: this.currentPackage.location, update: true})
       const commitResult = await gitCommit(
         `version(${this.currentPackage.name}): v${this.currentPackage.version}`,
         this.options,
