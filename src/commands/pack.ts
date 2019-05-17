@@ -158,7 +158,7 @@ class PackCommand extends SetAbsPathCommand {
       do {
         ++i
         const ver = cloneDeep(version)
-        version.prerelease = version.prerelease.concat(`${i}`)
+        ver.prerelease = ver.prerelease.concat(`${i}`)
         pkg.version = formatVersionWithBuild(ver)
         buildFile = getBuildFile(this.project, pkg)
         this.logger.info(prefix, 'Try: %s', buildFile)
