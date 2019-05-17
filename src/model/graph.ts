@@ -39,11 +39,13 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
     {graphType = 'allDependencies', forceLocal, project}: PackageGraphOptions = {},
   ) {
     const seen = new Map<string, string[]>()
+    let hasDuplicates = false
     super(
       iterate(packages).map((pkg) => {
         debug('iterating %s', pkg.name)
         const name = pkg.name
         if (seen.has(name)) {
+          hasDuplicates = true
           seen.get(name)!.push(pkg.location)
         } else {
           seen.set(name, [pkg.location])
@@ -53,7 +55,7 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
       }),
     )
 
-    if (seen.size !== this.size) {
+    if (hasDuplicates) {
       // weed out the duplicates
       for (const [name, locations] of seen) {
         if (locations.length > 1) {
