@@ -5,7 +5,7 @@ import * as fs from 'fs-extra'
 import * as npa from 'npm-package-arg'
 import {Argv} from 'yargs'
 
-import Command, {GlobalOptions} from '../command'
+import Command, {GlobalOptions, CommandContext} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import * as homedir from '../helpers/homedir'
 import Package from '../model/package'
@@ -26,17 +26,13 @@ type FilterKeys<T, U> = {
   [K in keyof T]: NonNullable<T[K]> extends U ? K : never
 }[keyof T]
 
-export default class SetAbsPathCommand extends Command {
-  // Override to change ? to !
-  currentPackage!: Package
-  originalPackage!: Package
 
+export default class SetAbsPathCommand extends Command {
   options!: Options
 
   async initialize() {
-    if (!this.currentPackage || !this.currentPackageNode) {
-      throw new NoCurrentPackage()
-    }
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
     this.setAbsolutePath('dependencies')
     // TODO: these two can probably be optional
     this.setAbsolutePath('optionalDependencies')
@@ -46,6 +42,8 @@ export default class SetAbsPathCommand extends Command {
   setAbsolutePath(
     depsArg: Dependencies | FilterKeys<Package, Dependencies> | undefined,
   ) {
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
     this.logger.info(prefix, 'Setting abs path', depsArg)
     const deps = typeof depsArg === 'string' ? this.currentPackage[depsArg] : depsArg
     if (!deps) {
@@ -87,7 +85,10 @@ export default class SetAbsPathCommand extends Command {
   // tslint:disable-next-line:no-empty
   async dryRun() {}
   async execute() {
-    const pkg = this.currentPackage
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
+    // tslint:disable-next-line: no-unnecessary-type-annotation
+    const pkg: Package = this.currentPackage
 
     const maniBackup = `${pkg.manifestLocation}.orig`
 

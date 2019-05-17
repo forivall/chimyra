@@ -7,7 +7,7 @@ import * as semver from 'semver'
 import {Argv} from 'yargs'
 import {cloneDeep} from 'lodash'
 
-import {GlobalOptions} from '../command'
+import {GlobalOptions, CommandContext} from '../command'
 import ValidationError, {NoCurrentPackage} from '../errors/validation'
 import {getBuildDir, getBuildFile} from '../helpers/build-paths'
 import * as childProcess from '../helpers/child-process'
@@ -96,17 +96,12 @@ export async function makeGitVersion(pkg: Package, ref: GitRef) {
   return formatVersionWithBuild(await makeGitSemver(pkg, ref))
 }
 
-export default class PackCommand extends SetAbsPathCommand {
-  // Override to change ? to !
-  currentPackage!: Package
-  originalPackage!: Package
-
+class PackCommand extends SetAbsPathCommand {
   options!: Options
 
   async initialize() {
-    if (!this.currentPackage || !this.currentPackageNode) {
-      throw new NoCurrentPackage()
-    }
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
     const pkg = this.currentPackage
 
     const ref = await describeRef({pkg, matchPkg: 'name'})
@@ -201,6 +196,8 @@ export default class PackCommand extends SetAbsPathCommand {
   }
 
   async dryRun() {
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
     const curPkg = this.currentPackage
     const target = curPkg.packTarget
 
@@ -222,6 +219,8 @@ export default class PackCommand extends SetAbsPathCommand {
   }
 
   async execute() {
+    if (!this.hasCurrentPackage()) throw new NoCurrentPackage()
+
     const pkg = this.currentPackage
     const buildDir = getBuildDir(this.project, pkg)
 
@@ -279,6 +278,7 @@ function parsePackResult(packReturn: ExecaReturns) {
   return packReturn.stdout
 }
 
+export default PackCommand as new (options: Options, context?: CommandContext) => PackCommand
 export function handler(argv: Options) {
   return new PackCommand(argv)
 }

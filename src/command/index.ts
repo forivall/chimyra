@@ -62,6 +62,7 @@ export interface CommandContext {
 }
 
 type CommandResult<T extends Command> = Resolve<ReturnType<T['execute']>>
+interface CommandResultPromise<T extends Command> extends Promise<CommandResult<T>> {}
 
 export default abstract class Command {
   // "FooCommand" => "foo"
@@ -78,15 +79,15 @@ export default abstract class Command {
   currentPackageNode?: PackageGraphNode
   currentPackage?: Package
 
-  then: Promise<CommandResult<this>>['then']
-  catch: Promise<CommandResult<this>>['catch']
+  then: CommandResultPromise<this>['then']
+  catch: CommandResultPromise<this>['catch']
 
   protected _env: CommandEnv = {
     ci: false /* require('is-ci') */,
   }
   protected _args: CommandArgs
 
-  constructor(args: CommandArgs, context: CommandContext = {}) {
+  constructor(args: GlobalOptions, context: CommandContext = {}) {
     this._args = args
 
     // composed commands are called from other commands, like publish -> version
@@ -132,6 +133,13 @@ export default abstract class Command {
   // For example `changed` inherits config from `publish`.
   get otherCommandConfigs() {
     return []
+  }
+
+  hasCurrentPackage<T extends Command>(this: T): this is T & {
+    currentPackage: NonNullable<Command['currentPackage']>
+    currentPackageNode: NonNullable<Command['currentPackageNode']>
+  } {
+    return Boolean(this.currentPackage && this.currentPackageNode)
   }
 
   async run() {
@@ -305,16 +313,16 @@ export default abstract class Command {
     }
   }
 
-  async runCommand(): Promise<unknown> {
+  async runCommand() {
     const proceed = (await this.initialize()) as boolean | undefined
     if (proceed !== false) {
       if (this.options.dryRun) {
         if (typeof this.dryRun === 'function') {
-          return this.dryRun()
+          return this.dryRun() as CommandResultPromise<this>
         }
-        return
+        return undefined as unknown as CommandResultPromise<this>
       }
-      return this.execute()
+      return this.execute() as CommandResultPromise<this>
     }
   }
 
