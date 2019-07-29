@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git+https://github.com/forivall/chimyra.git"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": {
     "name": "Emily Marigold Klassen",
     "email": "forivall@gmail.com"
