@@ -36,6 +36,7 @@
     },
     "no-inferred-empty-object-type": false,
     "no-null-keyword": false,
+    "no-require-imports": false,
     "no-object-literal-type-assertion": false
   }
 }
