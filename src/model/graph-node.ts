@@ -5,7 +5,7 @@ import ValidationError from '../errors/validation'
 import {NpaResultExt} from '../helpers/package-arg'
 import Package from './package'
 
-const debug = D('chimer:model:graph-node')
+const debug = D('chimyra:model:graph-node')
 
 /**
  * Represents a node in a PackageGraph.
@@ -15,11 +15,12 @@ export default class PackageGraphNode {
   readonly location!: string
   readonly prereleaseId?: string
 
-  protected _pkg!: Package
-
   externalDependencies: Map<string, NpaResultExt>
   localDependencies: Map<string, NpaResultExt>
   localDependents: Map<string, PackageGraphNode>
+
+  protected _pkg!: Package
+
   constructor(pkg: Package) {
     Object.defineProperties(this, {
       _pkg: {

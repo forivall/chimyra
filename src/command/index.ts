@@ -19,7 +19,7 @@ import {isChildProcessError} from '../helpers/child-process';
 const DEFAULT_CONCURRENCY = 4
 
 export interface CommandArgs {
-  chimerVersion?: string
+  chimyraVersion?: string
   cwd?: string
   composed?: string
   ci?: boolean
@@ -95,7 +95,7 @@ export default abstract class Command {
 
     if (!this.composed) {
       // composed commands have already logged the version
-      log.notice(name, `v${args.chimerVersion}`)
+      log.notice(name, `v${args.chimyraVersion}`)
     }
 
     this.project = context.project || new Project(args.cwd)

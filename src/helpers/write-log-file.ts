@@ -23,7 +23,7 @@ export default function writeLogFile(cwd: string) {
   })
 
   // this must be synchronous because it is called before process exit
-  writeFileAtomic.sync(path.join(cwd, 'chimer-debug.log'), logOutput)
+  writeFileAtomic.sync(path.join(cwd, 'chimyra-debug.log'), logOutput)
 
   // truncate log after writing
   log.record.length = 0

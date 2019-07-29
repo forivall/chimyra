@@ -32,18 +32,26 @@ export function builder(y: Argv) {
   })
 }
 
-const omitUndefined = _.partial(_.omitBy, _, _.isUndefined)
-const simplifyPkg = (p: Package) =>
-  omitUndefined({
-    name: p.name,
-    version: p.version,
-    dependencies: p.dependencies,
-    devDependencies: p.devDependencies,
-    optionalDependencies: p.optionalDependencies,
-    peerDependencies: p.peerDependencies,
-    bundleDependencies: p.bundleDependencies,
-    chimerDependencies: p.chimerDependencies,
+type ValueOf<T> = T[keyof T]
+type OptionalKeys<T> = ValueOf<{[K in keyof T]: undefined extends T[K] ? K : never}>
+type RequiredKeys<T> = ValueOf<{[K in keyof T]: undefined extends T[K] ? never : K}>
+const omitUndefined = _.partial(_.omitBy, _, _.isUndefined) as <T>(o: T) => {
+  [K in RequiredKeys<T>]: T[K]
+} & {
+  [K in OptionalKeys<T>]?: T[K]
+}
+const simplifyPkg = (p: Package) => {
+  const {
+    name, version,
+    dependencies, devDependencies, optionalDependencies,
+    peerDependencies, bundleDependencies, chimyraDependencies,
+  } = p
+  return omitUndefined({
+    name, version,
+    dependencies, devDependencies, optionalDependencies,
+    peerDependencies, bundleDependencies, chimyraDependencies,
   })
+}
 
 export interface Args extends CommandArgs {
   devDeps?: boolean

@@ -20,6 +20,9 @@ function binSafeName(result: npa.Result) {
 
 export interface ChimerPackageJson extends PackageJson {
   optionalDependencies?: Dependencies
+  chiDependencies?: Dependencies
+  chimyraDependencies?: Dependencies
+  /** @deprecated use 'chiDependencies' or 'chimyraDependencies' instead */
   chimerDependencies?: Dependencies
   [key: string]: any
 }
@@ -120,8 +123,8 @@ export default class Package {
   get peerDependencies() {
     return this._pkg.peerDependencies
   }
-  get chimerDependencies() {
-    return this._pkg.chimerDependencies
+  get chimyraDependencies() {
+    return this._pkg.chimyraDependencies || this._pkg.chiDependencies || this._pkg.chimerDependencies
   }
   get bundleDependencies() {
     return this._pkg.bundleDependencies || this._pkg.bundledDependencies
@@ -177,10 +180,10 @@ export default class Package {
       return
     }
 
-    let chiDependencies = this.chimerDependencies
+    let chiDependencies = this.chimyraDependencies
     if (!chiDependencies) {
       chiDependencies = {}
-      this.set('chimerDependencies', chiDependencies)
+      this.set('chimyraDependencies', chiDependencies)
     }
 
     if (resolved.registry || resolved.type === 'directory') {

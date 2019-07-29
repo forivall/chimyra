@@ -58,6 +58,7 @@ export function cli(argv?: string[], cwd?: string) {
       }
 
       log.error(name, actual.message)
+      log.info(name, 'Use --help for command usage')
 
       // exit non-zero so the CLI can be usefully chained
       y.exit(actual.code || 1, actual)
@@ -69,7 +70,7 @@ export function cli(argv?: string[], cwd?: string) {
 // tslint:disable-next-line: typedef
 export default function main(argv: string[]) {
   const ctx: CommandArgs = {
-    chimerVersion: pkg.version,
+    chimyraVersion: pkg.version,
   }
 
   return cli()

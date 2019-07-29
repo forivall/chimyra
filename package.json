@@ -1,18 +1,18 @@
 {
-  "name": "chimer",
+  "name": "chimyra",
   "version": "0.0.0",
   "description": "A tool for managing multi-package JavaScript projects, by bundling dependencies instead of publishing them",
   "keywords": [
-    "chimer",
+    "chimyra",
     "lerna",
     "monorepo",
     "multi-package",
     "tarball"
   ],
-  "homepage": "https://github.com/forivall/chimer",
+  "homepage": "https://github.com/forivall/chimyra",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/forivall/chimer.git"
+    "url": "git+https://github.com/forivall/chimyra.git"
   },
   "license": "UNLICENSED",
   "author": {
@@ -21,10 +21,11 @@
   },
   "bin": {
     "chi": "lib/cli.js",
-    "chimer": "lib/cli.js"
+    "chimyra": "lib/cli.js"
   },
   "scripts": {
     "build": "tsc -b",
+    "prepare": "npm run build",
     "test": "echo \"TODO: tests!\" && exit 1",
     "watch": "tsc -b -w"
   },

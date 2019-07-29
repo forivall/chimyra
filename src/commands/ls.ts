@@ -165,7 +165,7 @@ export default class LsCommand extends resolveTransitiveDeps(Command) {
       if (g && !this.options.tree) {
         const localDepsWithVersions = localDepsNames.map((n) => {
           const v = ((g.localDependencies.get(n) || ({} as Partial<NpaResultExt>))
-          .file || ({} as Partial<BuildFile>)).version || (pkg.chimerDependencies || {})[n]
+          .file || ({} as Partial<BuildFile>)).version || (pkg.chimyraDependencies || {})[n]
           return v ? `${chalk.green(n)}@${chalk.yellowBright(v)}` : chalk.cyan(n)
         })
         k += ' ' + localDepsWithVersions.join(' ')

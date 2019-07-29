@@ -10,7 +10,7 @@ import PackageGraphNode from './graph-node'
 import Package from './package'
 import Project from './project'
 
-const debug = D('chimer:model:graph')
+const debug = D('chimyra:model:graph')
 
 type MapKeys<T> = NonNullable<
   {[K in keyof T]: T[K] extends Map<any, any> ? K : never}[keyof T]
@@ -74,13 +74,13 @@ export default class PackageGraph extends Map<string, PackageGraphNode> {
     this.forEach((currentNode, currentName) => {
       const graphDependencies: Dependencies = {
         ...(graphType === 'dependencies' ? {} : {
-          ...currentNode.pkg.chimerDependencies,
+          ...currentNode.pkg.chimyraDependencies,
           ...currentNode.pkg.devDependencies,
         }),
         ...currentNode.pkg.optionalDependencies,
         ...currentNode.pkg.dependencies,
       }
-      const chiDependencies = currentNode.pkg.chimerDependencies || {}
+      const chiDependencies = currentNode.pkg.chimyraDependencies || {}
 
       Object.keys(graphDependencies).forEach((depName) => {
         const depNode = this.get(depName)
