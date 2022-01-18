@@ -38,7 +38,7 @@
     "execa": "^1.0.0",
     "fs-extra": "^7.0.1",
     "gentle-fs": "^2.0.1",
-    "glob-parent": "^5.0.0",
+    "glob-parent": "^5.1.2",
     "globby": "^9.2.0",
     "import-local": "^2.0.0",
     "indent-string": "^3.2.0",
