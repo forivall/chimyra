@@ -69,7 +69,7 @@
   "devDependencies": {
     "@npm/types": "^1.0.1",
     "@types/are-we-there-yet": "^1.1.0",
-    "@types/cmd-shim": "^2.0.0",
+    "@types/cmd-shim": "^2.0.1",
     "@types/cosmiconfig": "^5.0.3",
     "@types/debug": "^4.1.4",
     "@types/dedent": "^0.7.0",
